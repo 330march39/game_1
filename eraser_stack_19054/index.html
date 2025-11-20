@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ja" class="touch-none">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Eraser Stack - 消しゴムタワー</title>
+    <meta name="description" content="物理演算パズルゲーム">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Matter.js (Physics Engine) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap');
+
+        /* htmlにもtouch-noneを設定してスクロールを完全に防ぐ */
+        html, body {
+            touch-action: none;
+            overscroll-behavior: none;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            overflow: hidden;
+            background-color: #f0f4f8;
+            user-select: none;
+            -webkit-user-select: none;
+            cursor: pointer; /* クリック可能であることを示す */
+        }
+
+        /* 背景の方眼紙パターン */
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            background-image: 
+                linear-gradient(#e5e7eb 1px, transparent 1px),
+                linear-gradient(90deg, #e5e7eb 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: 1;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlay */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .pointer-events-auto {
+            pointer-events: auto;
+        }
+
+        /* アニメーション */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-scale {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .animate-pulse-scale {
+            animation: pulse-scale 2s ease-in-out infinite;
+        }
+
+        #score-display {
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .score-bump {
+            transform: scale(1.5);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container"></div>
+
+    <!-- UI Layer -->
+    <div class="ui-layer p-6">
+        <!-- Top HUD -->
+        <div class="flex justify-between items-start">
+            <div class="text-slate-800">
+                <h1 class="text-sm font-bold tracking-widest opacity-50 uppercase">Eraser Stack</h1>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-4xl font-black" id="score-display">0</span>
+                    <span class="text-sm font-bold text-slate-500">個</span>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Best</div>
+                <div class="text-xl font-bold text-slate-600" id="best-score-display">0</div>
+            </div>
+        </div>
+
+        <!-- Start / Game Over Screen -->
+        <div id="menu-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm z-50 transition-opacity duration-300 pointer-events-auto">
+            <div class="text-center space-y-6">
+                <div class="space-y-2 animate-float">
+                    <h2 class="text-6xl font-black text-slate-800 tracking-tighter">STACK</h2>
+                    <p class="text-slate-500 font-bold tracking-widest">消しゴムタワー</p>
+                </div>
+                
+                <div id="final-score-container" class="hidden bg-slate-100 rounded-2xl p-6 border border-slate-200">
+                    <div class="text-sm text-slate-500 font-bold mb-1">RESULT</div>
+                    <div class="text-5xl font-black text-slate-800" id="final-score">0</div>
+                </div>
+
+                <button id="start-btn" class="group relative px-8 py-4 bg-slate-900 text-white rounded-full font-bold text-lg shadow-xl hover:bg-slate-800 transition-all active:scale-95 animate-pulse-scale">
+                    <span id="start-text">START GAME</span>
+                    <div class="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                </button>
+                
+                <p class="text-xs text-slate-400 font-medium mt-8">Tap screen to drop</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Game Constants & Config ---
+        const CONFIG = {
+            eraserWidth: 120,
+            eraserHeight: 40,
+            platformWidth: 220,
+            platformHeight: 30,
+            swingSpeed: 0.003, 
+            swingRange: 0.85, 
+            colors: {
+                sleeve: '#3b82f6', 
+                rubber: '#ffffff', 
+                accent: '#1d4ed8',
+                platform: '#334155'
+            }
+        };
+
+        // --- Matter.js Modules ---
+        const Engine = Matter.Engine,
+              Render = Matter.Render,
+              Runner = Matter.Runner,
+              Bodies = Matter.Bodies,
+              Composite = Matter.Composite,
+              Events = Matter.Events,
+              Body = Matter.Body,
+              Vector = Matter.Vector;
+
+        // --- Global Variables ---
+        let engine, render, runner;
+        let width, height;
+        let currentEraserBody = null;
+        let platform;
+        let gameActive = false;
+        let score = 0;
+        let stack = [];
+        let cameraY = 0;
+
+        // --- Audio ---
+        const playSound = (type) => {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            const now = ctx.currentTime;
+            
+            if (type === 'drop') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(500, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'hit') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'over') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.linearRampToValueAtTime(50, now + 0.5);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            }
+        };
+
+        // --- Initialization ---
+        function init() {
+            const container = document.getElementById('game-container');
+            width = container.clientWidth;
+            height = container.clientHeight;
+
+            // Engine Setup
+            engine = Engine.create();
+            engine.positionIterations = 10; // 精度向上
+            engine.velocityIterations = 10;
+
+            // Renderer Setup
+            render = Render.create({
+                element: container,
+                engine: engine,
+                options: {
+                    width: width,
+                    height: height,
+                    wireframes: false,
+                    background: 'transparent',
+                    pixelRatio: window.devicePixelRatio
+                }
+            });
+
+            // Custom Rendering Hook
+            Events.on(render, 'afterRender', renderCustomGraphics);
+            Events.on(engine, 'collisionStart', handleCollisions);
+            Events.on(engine, 'beforeUpdate', updateGameLoop);
+
+            // --- Input Handling (FIXED) ---
+            const inputHandler = (e) => {
+                // ボタンやUI操作時はゲーム入力を無視
+                if (e.target.closest('.pointer-events-auto') || e.target.tagName === 'BUTTON') return;
+                
+                handleInput();
+            };
+            
+            // 修正: window全体でイベントをリッスンし、どこをタップしても反応するようにする
+            // pointerdown はマウス、タッチ、ペン全てに対応
+            window.addEventListener('pointerdown', inputHandler);
+            
+            // スペースキーでも操作可能に
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Space') handleInput();
+            });
+
+            // Resize Handler
+            window.addEventListener('resize', () => {
+                width = container.clientWidth;
+                height = container.clientHeight;
+                render.canvas.width = width * window.devicePixelRatio;
+                render.canvas.height = height * window.devicePixelRatio;
+            });
+
+            document.getElementById('start-btn').addEventListener('click', startGame);
+
+            // Start Systems
+            runner = Runner.create();
+            Runner.run(runner, engine);
+            Render.run(render);
+
+            // Load Best Score
+            const best = localStorage.getItem('eraser_stack_best') || 0;
+            document.getElementById('best-score-display').innerText = best;
+        }
+
+        // --- Game Logic ---
+
+        function startGame(e) {
+            if(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            // Reset World
+            Composite.clear(engine.world);
+            Engine.clear(engine); // キャッシュクリア等
+            
+            gameActive = true;
+            score = 0;
+            stack = [];
+            cameraY = 0;
+            updateScore(0);
+            
+            document.getElementById('menu-screen').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('final-score-container').classList.add('hidden');
+
+            // Create Platform
+            platform = Bodies.rectangle(width / 2, height - 100, CONFIG.platformWidth, CONFIG.platformHeight, { 
+                isStatic: true,
+                friction: 1.0,
+                render: { visible: false }, // カスタム描画のみにする
+                label: 'platform'
+            });
+            
+            // Invisible floor
+            const floor = Bodies.rectangle(width / 2, height + 500, width * 4, 100, {
+                isStatic: true,
+                isSensor: true,
+                label: 'floor'
+            });
+
+            Composite.add(engine.world, [platform, floor]);
+            
+            // カメラ位置をリセット
+             Render.lookAt(render, {
+                min: { x: 0, y: 0 },
+                max: { x: width, y: height }
+            });
+
+            spawnNewEraserPreview();
+        }
+
+        function spawnNewEraserPreview() {
+            if (!gameActive) return;
+
+            currentEraserBody = {
+                x: width / 2,
+                y: 120, 
+                angle: 0,
+                width: CONFIG.eraserWidth,
+                height: CONFIG.eraserHeight,
+                color: CONFIG.colors.sleeve
+            };
+        }
+
+        function handleInput() {
+            if (!gameActive || !currentEraserBody) return;
+            dropEraser();
+        }
+
+        function dropEraser() {
+            const { x, y, width: w, height: h, color } = currentEraserBody;
+
+            // Create Physics Body
+            const eraser = Bodies.rectangle(x, y, w, h, {
+                restitution: 0.05, // あまり跳ねない
+                friction: 0.9,     // よく止まる
+                frictionStatic: 1.0,
+                density: 0.004,    // 重め
+                label: 'eraser',
+                render: { visible: false }, // カスタム描画
+                plugin: { color: color }
+            });
+
+            Composite.add(engine.world, eraser);
+            stack.push(eraser);
+            
+            playSound('drop');
+            currentEraserBody = null;
+
+            setTimeout(() => {
+                if (gameActive) spawnNewEraserPreview();
+            }, 800);
+        }
+
+        function updateGameLoop() {
+            if (!gameActive) return;
+            const time = engine.timing.timestamp;
+
+            // 1. Preview Swing
+            if (currentEraserBody) {
+                const swingX = Math.sin(time * CONFIG.swingSpeed) * (width * CONFIG.swingRange / 2);
+                currentEraserBody.x = (width / 2) + swingX;
+                currentEraserBody.y = cameraY + 150;
+            }
+
+            // 2. Camera Follow
+            if (stack.length > 0) {
+                let highestY = height;
+                stack.forEach(body => {
+                    if (body.position.y < highestY) highestY = body.position.y;
+                });
+
+                const targetY = highestY - (height * 0.6);
+                
+                if (targetY < cameraY) {
+                    cameraY += (targetY - cameraY) * 0.08; // Smoothness
+                    
+                    Render.lookAt(render, {
+                        min: { x: 0, y: cameraY },
+                        max: { x: width, y: cameraY + height }
+                    });
+                }
+            }
+        }
+
+        function handleCollisions(event) {
+            const pairs = event.pairs;
+
+            pairs.forEach(pair => {
+                const { bodyA, bodyB } = pair;
+                
+                // Game Over Check
+                if (bodyA.label === 'floor' || bodyB.label === 'floor') {
+                    const fallingBody = bodyA.label === 'floor' ? bodyB : bodyA;
+                    if (fallingBody.label === 'eraser') {
+                        gameOver();
+                    }
+                }
+
+                // Sound Effect & Scoring
+                if ((bodyA.label === 'eraser' && bodyB.label === 'platform') ||
+                    (bodyA.label === 'eraser' && bodyB.label === 'eraser')) {
+                    
+                    const speed = Vector.magnitude(bodyA.velocity) + Vector.magnitude(bodyB.velocity);
+                    if (speed > 0.5) {
+                        playSound('hit');
+                    }
+                    
+                    // 更新: スタック数でスコア更新
+                    updateScore(stack.length);
+                }
+            });
+        }
+
+        function updateScore(val) {
+            if (val === score) return;
+            score = val;
+            const el = document.getElementById('score-display');
+            el.innerText = score;
+            
+            el.classList.remove('score-bump');
+            void el.offsetWidth; 
+            el.classList.add('score-bump');
+        }
+
+        function gameOver() {
+            if (!gameActive) return;
+            gameActive = false;
+            playSound('over');
+
+            const currentBest = parseInt(localStorage.getItem('eraser_stack_best') || 0);
+            if (score > currentBest) {
+                localStorage.setItem('eraser_stack_best', score);
+                document.getElementById('best-score-display').innerText = score;
+            }
+
+            const menu = document.getElementById('menu-screen');
+            menu.classList.remove('opacity-0', 'pointer-events-none');
+            
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-score-container').classList.remove('hidden');
+            document.getElementById('start-text').innerText = "RETRY";
+        }
+
+        // --- Custom Rendering ---
+        function renderCustomGraphics() {
+            const ctx = render.context;
+
+            // 0. Draw Platform (Static)
+            if (gameActive && platform) {
+                const { x, y } = platform.position;
+                const w = CONFIG.platformWidth;
+                const h = CONFIG.platformHeight;
+                
+                ctx.fillStyle = CONFIG.colors.platform;
+                ctx.beginPath();
+                ctx.roundRect(x - w/2, y - h/2, w, h, 4);
+                ctx.fill();
+                
+                // Simple desk texture lines
+                ctx.strokeStyle = "rgba(255,255,255,0.1)";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x - w/2 + 10, y - h/2 + 5);
+                ctx.lineTo(x + w/2 - 10, y - h/2 + 5);
+                ctx.stroke();
+            }
+            
+            // 1. Draw Spawner Preview
+            if (currentEraserBody) {
+                const { x, y, width: w, height: h, color } = currentEraserBody;
+                
+                ctx.save();
+                ctx.translate(x, y); 
+                
+                // Crane Line
+                ctx.beginPath();
+                ctx.moveTo(0, -2000); 
+                ctx.lineTo(0, 0);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#94a3b8';
+                ctx.setLineDash([6, 4]);
+                ctx.stroke();
+
+                // Eraser Ghost
+                drawEraserVisual(ctx, 0, 0, w, h, 0, color, 0.6);
+                
+                ctx.restore();
+            }
+
+            // 2. Draw Active Erasers
+            stack.forEach(body => {
+                const { x, y } = body.position;
+                const w = CONFIG.eraserWidth;
+                const h = CONFIG.eraserHeight;
+                const angle = body.angle;
+                const color = body.plugin.color || CONFIG.colors.sleeve;
+
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+                drawEraserVisual(ctx, 0, 0, w, h, angle, color, 1.0);
+                ctx.restore();
+            });
+        }
+
+        function drawEraserVisual(ctx, x, y, w, h, angle, color, opacity) {
+            const sleeveRatio = 0.6; 
+            const r = 3; 
+
+            ctx.globalAlpha = opacity;
+
+            // Shadow
+            ctx.shadowColor = "rgba(0,0,0,0.1)";
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 4;
+
+            // 1. White Rubber
+            ctx.fillStyle = CONFIG.colors.rubber;
+            ctx.beginPath();
+            ctx.roundRect(-w/2, -h/2, w, h, r);
+            ctx.fill();
+
+            ctx.shadowColor = "transparent";
+
+            // 2. Blue Sleeve
+            const sleeveW = w * sleeveRatio;
+            
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(-w/2, -h/2, w, h, r);
+            ctx.clip(); // Clip to rounded shape
+            
+            ctx.fillStyle = color;
+            ctx.fillRect(-w/2, -h/2, sleeveW, h);
+            
+            // Sleeve Details
+            ctx.fillStyle = "rgba(255,255,255,0.2)";
+            ctx.fillRect(-w/2 + 12, -h/2, 4, h); 
+
+            // "ERASER" Text
+            ctx.fillStyle = "white";
+            ctx.font = "700 12px Inter, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.letterSpacing = "1px";
+            ctx.fillText("ERASER", -w/2 + sleeveW/2, 1);
+
+            ctx.restore();
+
+            // 3. Outline (Subtle)
+            ctx.strokeStyle = "rgba(0,0,0,0.05)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(-w/2, -h/2, w, h, r);
+            ctx.stroke();
+
+            ctx.globalAlpha = 1.0;
+        }
+
+        window.onload = init;
+
+    </script>
+</body>
+</html>
