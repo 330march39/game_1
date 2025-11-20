@@ -15,7 +15,7 @@
             overflow: hidden;
             touch-action: none;
             background: radial-gradient(circle at 50% 10%, #1a1a2e 0%, #000000 100%);
-            -webkit-tap-highlight-color: transparent; /* スマホでのタップハイライト削除 */
+            -webkit-tap-highlight-color: transparent;
         }
 
         .glass-panel {
@@ -59,14 +59,25 @@
             text-shadow: 0 0 10px rgba(255,255,255,0.5), 0 0 20px rgba(41, 151, 255, 0.3);
         }
         
-        /* Target Number Pulse Animation */
         @keyframes pulse-target {
             0% { transform: scale(1); text-shadow: 0 0 10px rgba(250, 204, 21, 0.5); }
             50% { transform: scale(1.2); text-shadow: 0 0 20px rgba(250, 204, 21, 0.8), 0 0 40px rgba(250, 204, 21, 0.4); }
             100% { transform: scale(1); text-shadow: 0 0 10px rgba(250, 204, 21, 0.5); }
         }
-        .target-change {
+        .target-change-anim {
             animation: pulse-target 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Target Change Overlay Animation */
+        @keyframes pop-in-out {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            30% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+            80% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
+        }
+        .overlay-anim {
+            animation: pop-in-out 2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
     </style>
 </head>
@@ -75,12 +86,24 @@
     <!-- Game Canvas -->
     <canvas id="gameCanvas"></canvas>
 
+    <!-- Target Change Overlay (Hidden by default) -->
+    <div id="targetChangeOverlay" class="hidden fixed top-1/2 left-1/2 w-full pointer-events-none z-50 text-center">
+        <div class="text-yellow-400 font-black italic tracking-tighter text-4xl md:text-6xl mb-2 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)]" style="text-shadow: 0 0 30px orange;">TARGET CHANGE</div>
+        <div id="overlayTargetNum" class="text-white font-['JetBrains_Mono'] font-bold text-8xl md:text-9xl drop-shadow-2xl neon-text">15</div>
+    </div>
+
     <!-- HUD -->
     <div id="hud" class="absolute top-0 left-0 w-full p-4 md:p-6 flex justify-between items-start pointer-events-none z-10 select-none bg-transparent">
-        <!-- Score -->
-        <div class="flex flex-col gap-1 w-20 bg-transparent">
-            <div class="text-[10px] text-gray-400 tracking-[0.2em] font-bold uppercase opacity-70">SCORE</div>
-            <div id="scoreDisplay" class="text-2xl md:text-3xl font-bold text-white tabular-nums font-['JetBrains_Mono'] tracking-tighter neon-text">0</div>
+        <!-- Score & Best -->
+        <div class="flex flex-col gap-2 w-24 bg-transparent">
+            <div>
+                <div class="text-[10px] text-gray-400 tracking-[0.2em] font-bold uppercase opacity-70">SCORE</div>
+                <div id="scoreDisplay" class="text-2xl md:text-3xl font-bold text-white tabular-nums font-['JetBrains_Mono'] tracking-tighter neon-text">0</div>
+            </div>
+            <div>
+                <div class="text-[10px] text-blue-400 tracking-[0.2em] font-bold uppercase opacity-80">BEST</div>
+                <div id="bestScoreDisplay" class="text-lg font-bold text-blue-200 tabular-nums font-['JetBrains_Mono'] tracking-tighter">0</div>
+            </div>
         </div>
 
         <!-- Target Display (Center) -->
@@ -90,7 +113,7 @@
         </div>
 
         <!-- Next Piece -->
-        <div class="flex flex-col gap-2 items-end w-20 bg-transparent">
+        <div class="flex flex-col gap-2 items-end w-24 bg-transparent">
             <div class="text-[10px] text-gray-400 tracking-[0.2em] font-bold uppercase opacity-70">NEXT</div>
             <div class="relative">
                 <div class="absolute inset-0 bg-blue-500/20 blur-xl rounded-full"></div>
@@ -114,18 +137,18 @@
                     <span class="w-1 h-4 bg-blue-500 rounded-full"></span>
                     MISSION
                 </p>
-                <ul class="space-y-2 text-xs text-gray-400">
+                <ul class="space-y-3 text-xs text-gray-400">
                     <li class="flex items-start gap-2">
-                        <span class="text-blue-500 mt-0.5">●</span>
-                        <span>タップして数字を落とす</span>
+                        <span class="text-blue-500 mt-0.5 text-base">●</span>
+                        <span>数字を落として積み上げる</span>
                     </li>
                     <li class="flex items-start gap-2">
-                        <span class="text-yellow-500 mt-0.5">●</span>
-                        <span><strong class="text-yellow-400">TARGET</strong>の数字を作ると消滅</span>
+                        <span class="text-yellow-500 mt-0.5 text-base">●</span>
+                        <span>縦に並んだ合計が <strong class="text-yellow-400 text-sm font-mono">TARGET</strong> になると消滅</span>
                     </li>
                     <li class="flex items-start gap-2">
-                        <span class="text-red-500 mt-0.5">●</span>
-                        <span>ターゲットはゲーム中に変化する！</span>
+                        <span class="text-red-500 mt-0.5 text-base">●</span>
+                        <span>枠からはみ出すとゲームオーバー！</span>
                     </li>
                 </ul>
             </div>
@@ -143,6 +166,7 @@
             <div>
                 <div class="text-[10px] text-gray-500 uppercase tracking-widest mb-2">Final Score</div>
                 <div id="finalScore" class="text-6xl font-bold text-white font-['JetBrains_Mono'] tracking-tighter text-shadow-lg">0</div>
+                <div class="mt-4 text-sm text-blue-300 font-mono">BEST: <span id="gameOverBest">0</span></div>
             </div>
             <button id="restartBtn" class="btn-primary w-full py-4 rounded-2xl text-white font-bold text-sm tracking-[0.15em] uppercase hover:scale-[1.02]">
                 Reboot
@@ -152,7 +176,7 @@
 
     <script>
         /**
-         * MAKE 10: NEON DROP (v2.2 - Bug Fixes & Enhanced Target Logic)
+         * MAKE 10: NEON DROP (v2.3 - Best Score & Enhanced UX)
          */
 
         const COLS = 6;
@@ -249,6 +273,7 @@
                 this.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
                 this.particles = [];
                 this.score = 0;
+                this.bestScore = parseInt(localStorage.getItem('neonDropBest')) || 0;
                 this.targetSum = 10;
                 this.lastLevel = 0;
                 this.isPlaying = false;
@@ -263,6 +288,9 @@
                 this.lastTime = 0;
                 this.animate = this.animate.bind(this);
                 requestAnimationFrame(this.animate);
+                
+                // Init best score display
+                document.getElementById('bestScoreDisplay').innerText = this.bestScore;
             }
 
             resize() {
@@ -276,7 +304,7 @@
                 this.ctx.resetTransform();
                 this.ctx.scale(dpr, dpr);
 
-                const availableHeight = displayHeight - 160; // Adjusted for HUD
+                const availableHeight = displayHeight - 160; 
                 const availableWidth = displayWidth - 30;
                 const maxCellH = availableHeight / ROWS;
                 const maxCellW = availableWidth / COLS;
@@ -293,7 +321,7 @@
                 this.resize();
                 this.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
                 this.score = 0;
-                this.targetSum = 10; // Reset target
+                this.targetSum = 10; 
                 this.lastLevel = 0;
                 this.particles = [];
                 this.fallingPieces = [];
@@ -311,7 +339,6 @@
                         let safe = false;
                         let val;
                         let attempts = 0;
-                        
                         while (!safe && attempts < 50) {
                             val = this.randomNum();
                             safe = true;
@@ -324,8 +351,6 @@
                             }
                             attempts++;
                         }
-                        
-                        // isClearing flag added to prevent bugs
                         this.grid[r][c] = { val: val, color: this.getColor(val), isClearing: false };
                     }
                 }
@@ -352,7 +377,13 @@
                 if (!this.isPlaying) return;
                 const col = this.getColFromX(e.clientX);
                 if (col === -1) return;
-                if (this.grid[0][col] !== null) return; 
+                
+                // Check Game Over Condition: If column is full to the top
+                if (this.grid[0][col] !== null) {
+                    // Trigger Game Over immediately if tapping a full column
+                    this.gameOver();
+                    return; 
+                }
 
                 this.spawnPieceInColumn(col, this.nextPieceVal);
                 this.nextPieceVal = this.randomNum();
@@ -394,10 +425,12 @@
                     const targetPixelY = this.gridOffsetY + (targetRow * this.cellHeight);
                     
                     if (p.y >= targetPixelY) {
+                        // Strict Game Over check: landed outside top
                         if (targetRow < 0) {
                             this.gameOver();
                             return;
                         }
+
                         p.y = targetPixelY;
                         p.landed = true;
                         this.grid[targetRow][p.col] = { val: p.val, color: this.getColor(p.val), isClearing: false };
@@ -412,12 +445,9 @@
                 }
             }
 
-            // Check for matches in a specific column
             checkMatch(col) {
                 let stack = [];
                 for (let r = 0; r < ROWS; r++) {
-                    // CRITICAL FIX: Ignore blocks that are already marked for clearing
-                    // This prevents them from being counted again if target changes mid-animation
                     if (this.grid[r][col] !== null && !this.grid[r][col].isClearing) {
                         stack.push({ val: this.grid[r][col].val, r: r });
                     }
@@ -444,14 +474,12 @@
                 }
 
                 if (matchFound) {
-                    // Mark as clearing IMMEDIATELY so they aren't reused
                     matchIndices.forEach(r => {
                         if(this.grid[r][col]) this.grid[r][col].isClearing = true;
                     });
 
                     setTimeout(() => {
                         matchIndices.forEach(r => {
-                            // Double check existence just in case
                             if (this.grid[r][col]) {
                                 const cellVal = this.grid[r][col].val;
                                 this.createExplosion(col, r, this.getColor(cellVal));
@@ -461,8 +489,13 @@
 
                         this.score += 100 * matchIndices.length;
                         
+                        // Update Best Score realtime
+                        if (this.score > this.bestScore) {
+                            this.bestScore = this.score;
+                            document.getElementById('bestScoreDisplay').innerText = this.bestScore;
+                        }
+
                         this.checkLevelProgression();
-                        
                         this.updateUI();
                         this.audio.playClear();
                         this.applyGravity(col);
@@ -471,7 +504,7 @@
             }
 
             checkLevelProgression() {
-                const levelStep = 1500; // FIX: Changed to 1500 as requested
+                const levelStep = 1500;
                 const currentLevel = Math.floor(this.score / levelStep);
 
                 if (currentLevel > this.lastLevel) {
@@ -481,11 +514,10 @@
             }
 
             changeTarget() {
-                const minT = 10; // FIX: Changed to 10-19 range
+                const minT = 10; 
                 const maxT = 19;
                 
                 let newTarget = this.targetSum;
-                // Force change
                 while (newTarget === this.targetSum) {
                     newTarget = Math.floor(Math.random() * (maxT - minT + 1)) + minT;
                 }
@@ -493,15 +525,25 @@
                 this.targetSum = newTarget;
                 this.audio.playTargetChange();
 
+                // Trigger Big Overlay Animation
+                const overlay = document.getElementById('targetChangeOverlay');
+                const overlayNum = document.getElementById('overlayTargetNum');
+                overlayNum.innerText = this.targetSum;
+                
+                overlay.classList.remove('hidden');
+                overlay.classList.remove('overlay-anim');
+                void overlay.offsetWidth; // Reflow
+                overlay.classList.add('overlay-anim');
+
+                // Regular HUD Animation
                 const targetEl = document.getElementById('targetDisplay');
-                targetEl.classList.remove('target-change');
+                targetEl.classList.remove('target-change-anim');
                 void targetEl.offsetWidth;
-                targetEl.classList.add('target-change');
+                targetEl.classList.add('target-change-anim');
                 
                 targetEl.style.color = '#fff';
                 setTimeout(() => { targetEl.style.color = '#facc15'; }, 300);
 
-                // NEW: Check ALL columns for new matches immediately when target changes
                 this.checkAllColumnsMatches();
             }
 
@@ -542,9 +584,18 @@
             }
 
             gameOver() {
+                if (!this.isPlaying) return;
                 this.isPlaying = false;
+                
+                // Save Best Score
+                if (this.score > this.bestScore) {
+                    this.bestScore = this.score;
+                }
+                localStorage.setItem('neonDropBest', this.bestScore);
+                
                 this.audio.playGameOver();
                 document.getElementById('finalScore').innerText = this.score;
+                document.getElementById('gameOverBest').innerText = this.bestScore;
                 document.getElementById('gameOverScreen').classList.remove('hidden');
             }
 
@@ -616,7 +667,6 @@
                     const margin = (this.cellWidth - size) / 2;
                     const color = this.getColor(val);
 
-                    // Visual feedback for clearing blocks
                     if (isClearing) {
                         this.ctx.globalAlpha = 0.5;
                         this.ctx.fillStyle = '#fff';
