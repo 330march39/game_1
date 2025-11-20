@@ -15,9 +15,6 @@
     <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Lucide Icons (Just for reference, removed from React render to prevent crash) -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+JP:wght@400;700;900&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
@@ -71,6 +68,10 @@
         
         .glow-text-red {
             text-shadow: 0 0 15px rgba(239, 68, 68, 0.9);
+        }
+
+        .glow-text-gold {
+            text-shadow: 0 0 20px rgba(234, 179, 8, 0.9);
         }
 
         .animate-pulse-fast {
@@ -138,8 +139,8 @@
 
             playShoot(combo) {
                 const basePitch = 800;
-                const pitch = Math.min(basePitch + (combo * 50), 2000);
-                this.playTone(pitch, 'sine', 0.1, 0.1); 
+                const pitch = Math.min(basePitch + (combo * 50), 2500);
+                this.playTone(pitch, 'sine', 0.08, 0.1); 
                 this.playTone(150, 'square', 0.05, 0.05);
             }
 
@@ -180,8 +181,32 @@
             email: '📧'
         };
 
-        // Target Score for S-Rank
-        const TARGET_SCORE = 50000;
+        // --- RANK SYSTEM CONFIGURATION ---
+        // "Almost impossible" S-rank tuning
+        const RANK_SYSTEM = [
+            { id: 'F', min: 0, color: 'text-slate-400' },
+            { id: 'E', min: 5000, color: 'text-slate-300' },
+            { id: 'D', min: 12000, color: 'text-green-400' },
+            { id: 'C', min: 22000, color: 'text-cyan-400' },
+            { id: 'B', min: 35000, color: 'text-blue-400' },
+            { id: 'A', min: 55000, color: 'text-purple-400' },
+            { id: 'S', min: 80000, color: 'text-yellow-400' } // High ceiling
+        ];
+
+        const getRankInfo = (score) => {
+            for (let i = RANK_SYSTEM.length - 1; i >= 0; i--) {
+                if (score >= RANK_SYSTEM[i].min) {
+                    const current = RANK_SYSTEM[i];
+                    const next = RANK_SYSTEM[i + 1];
+                    return {
+                        current: current,
+                        next: next || null,
+                        progress: next ? (score - current.min) / (next.min - current.min) : 1
+                    };
+                }
+            }
+            return { current: RANK_SYSTEM[0], next: RANK_SYSTEM[1], progress: 0 };
+        };
 
         // --- Main Component ---
         const App = () => {
@@ -190,6 +215,7 @@
             const [health, setHealth] = useState(100);
             const [combo, setCombo] = useState(0);
             const [highScore, setHighScore] = useState(0);
+            const [currentRank, setCurrentRank] = useState(RANK_SYSTEM[0]);
             
             const canvasRef = useRef(null);
             const requestRef = useRef();
@@ -234,25 +260,29 @@
                 const typeRoll = Math.random();
                 let type = 'zzz';
                 
-                // SPEED TUNING (Mobile Optimized):
-                // Scale speed based on screen size. Smaller screen = slower raw speed (but same relative speed)
+                // --- DIFFICULTY CURVE ---
+                // Mobile Optimized scaling
                 let baseSpeed = 3.5 * screenScaleRef.current; 
-                let speed = baseSpeed + (difficultyMultiplier.current * 0.5 * screenScaleRef.current); 
+                
+                // Increase speed multiplier cap (allow it to get very fast for S rank)
+                let speed = baseSpeed + (difficultyMultiplier.current * 0.7 * screenScaleRef.current); 
                 let icon = ICONS.zzz;
 
-                if (killCountRef.current > 10 && typeRoll > 0.6) {
+                // Enemy Types based on Kill Count (Progression)
+                if (killCountRef.current > 15 && typeRoll > 0.6) {
                     type = 'phone';
                     speed *= 1.3; 
                     icon = ICONS.phone;
                 }
-                if (killCountRef.current > 25 && typeRoll > 0.85) {
+                if (killCountRef.current > 40 && typeRoll > 0.85) {
                     type = 'game';
-                    speed *= 1.1;
+                    speed *= 1.1; // Slightly slower than phone but erratic
                     icon = ICONS.game;
                 }
-                if (killCountRef.current > 50 && typeRoll > 0.95) {
+                // Hard enemies appear sooner and more often to pressure player
+                if (killCountRef.current > 70 && typeRoll > 0.90) {
                     type = 'hard';
-                    speed *= 1.5;
+                    speed *= 1.6; // Very fast
                     icon = '🔥';
                 }
 
@@ -263,7 +293,7 @@
                     icon,
                     speed,
                     angle: Math.atan2(player.current.y - y, player.current.x - x),
-                    radius: 30 * screenScaleRef.current, // Scale enemy size slightly too
+                    radius: 30 * screenScaleRef.current, 
                     wobble: Math.random() * Math.PI * 2,
                     active: true
                 });
@@ -305,19 +335,22 @@
                 const width = canvas.width;
                 const height = canvas.height;
 
-                // Update Screen Scale Logic
-                // Base desktop reference is roughly 1000px shortest dimension.
-                // If mobile (e.g. 375px), scale is ~0.375
+                // Screen Scale
                 const shortestSide = Math.min(width, height);
-                // Clamp scale so it doesn't get too tiny or huge.
-                // 0.6 is minimum scale for mobile readability, 1.2 max
                 screenScaleRef.current = Math.max(0.6, Math.min(1.2, shortestSide / 800));
 
-                difficultyMultiplier.current = Math.min(5, 1 + (killCountRef.current / 30)); 
+                // --- DIFFICULTY SCALING ---
+                // Aggressive scaling: Caps at 8x speed for S-rank challenge
+                // This ensures the game becomes "impossible" eventually
+                difficultyMultiplier.current = 1 + (killCountRef.current / 25); 
 
                 if (lastSpawnTime.current === 0) lastSpawnTime.current = time;
 
-                const spawnRate = Math.max(250, 700 - (killCountRef.current * 10)); 
+                // --- SPAWN RATE ---
+                // Drops to 150ms (insane barrage) at high kill counts
+                const minSpawnRate = 150;
+                const spawnRate = Math.max(minSpawnRate, 700 - (killCountRef.current * 12)); 
+                
                 if (time - lastSpawnTime.current > spawnRate) {
                     spawnEnemy(width, height, time);
                     lastSpawnTime.current = time;
@@ -340,7 +373,7 @@
                 // Player
                 player.current.x = width / 2;
                 player.current.y = height / 2;
-                player.current.radius = 32 * screenScaleRef.current; // Dynamic player size
+                player.current.radius = 32 * screenScaleRef.current;
                 
                 const pulseRate = healthRef.current < 30 ? 50 : 150;
                 const pulse = Math.sin(time / pulseRate) * (6 * screenScaleRef.current);
@@ -391,7 +424,6 @@
                     ctx.shadowBlur = isHard ? 30 : 15;
                     
                     ctx.beginPath();
-                    // radius is already scaled at spawn
                     ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
                     ctx.fillStyle = isHard ? 'rgba(239, 68, 68, 0.4)' : 'rgba(167, 139, 250, 0.2)';
                     ctx.fill();
@@ -476,8 +508,6 @@
                 enemies.current.forEach(enemy => {
                     if (!enemy.active) return;
                     const dist = Math.hypot(x - enemy.x, y - enemy.y);
-                    // Generous hit radius for mobile (enemy.radius + buffer)
-                    // Scale buffer by screen size too for consistency
                     const hitBuffer = 40 * screenScaleRef.current;
                     if (dist < enemy.radius + hitBuffer) {
                         enemy.active = false;
@@ -498,6 +528,10 @@
                         setScore(scoreRef.current);
                         setCombo(comboRef.current);
                         
+                        // Update Rank in real-time
+                        const rankInfo = getRankInfo(scoreRef.current);
+                        setCurrentRank(rankInfo.current);
+
                         if (comboRef.current > 0 && comboRef.current % 20 === 0) {
                             healthRef.current = Math.min(healthRef.current + 10, 100);
                             setHealth(healthRef.current);
@@ -550,12 +584,17 @@
                 setScore(0);
                 setHealth(100);
                 setCombo(0);
+                setCurrentRank(RANK_SYSTEM[0]);
             };
 
             const endGame = () => {
                 gameStateRef.current = GAME_STATE.GAMEOVER;
                 setGameState(GAME_STATE.GAMEOVER);
                 
+                // Final rank update to be safe
+                const rankInfo = getRankInfo(scoreRef.current);
+                setCurrentRank(rankInfo.current);
+
                 if (scoreRef.current > highScore) {
                     setHighScore(scoreRef.current);
                     localStorage.setItem('tapDefenderHighScore', scoreRef.current);
@@ -584,6 +623,7 @@
                 };
             }, [update]);
 
+            const rankInfo = getRankInfo(score);
 
             return (
                 <div className="w-full h-full relative bg-slate-950 overflow-hidden select-none">
@@ -602,8 +642,22 @@
                                 <div className="text-3xl md:text-5xl font-bold text-white glow-text-blue font-tech tabular-nums">
                                     {score.toLocaleString()}
                                 </div>
-                                <div className="text-[10px] md:text-xs text-slate-500 font-tech tracking-wider">TARGET: {TARGET_SCORE.toLocaleString()}</div>
+                                
+                                {/* Next Rank Indicator */}
+                                {rankInfo.next && (
+                                    <div className="mt-1 w-32 md:w-48 bg-slate-800/50 h-1 rounded-full overflow-hidden">
+                                        <div 
+                                            className="bg-sky-500 h-full transition-all duration-300"
+                                            style={{ width: `${rankInfo.progress * 100}%` }}
+                                        />
+                                    </div>
+                                )}
+                                <div className="text-[10px] md:text-xs text-slate-400 font-tech tracking-wider mt-1">
+                                    RANK: <span className={`text-lg font-bold ${currentRank.color}`}>{currentRank.id}</span> 
+                                    {rankInfo.next ? ` / NEXT: ${rankInfo.next.min.toLocaleString()}` : " / MAX"}
+                                </div>
                             </div>
+                            
                             <div className="text-right">
                                 <div className="text-slate-500 text-[10px] md:text-xs font-bold tracking-widest font-tech">HIGH SCORE</div>
                                 <div className="text-lg md:text-2xl font-tech text-emerald-400 tabular-nums">{highScore.toLocaleString()}</div>
@@ -648,24 +702,17 @@
                                     TAP <span className="text-sky-500">DEFENDER</span>
                                 </h1>
                                 <p className="text-slate-400 mb-6 md:mb-8 text-xs md:text-sm font-bold leading-relaxed">
-                                    <span className="text-white">警告:</span> 思考への侵入者を検知。<br/>
-                                    連続タップでコンボを繋ぎ、<br/>
-                                    脳内を守り抜け！
+                                    <span className="text-white">ランク・チャレンジ:</span><br/>
+                                    迫りくる弾幕を凌ぎ、<br/>
+                                    至高の<span className="text-yellow-400">Sランク</span>を目指せ！
                                 </p>
                                 
-                                <div className="flex justify-center gap-2 md:gap-4 mb-6 md:mb-8">
-                                    <div className="bg-slate-900/80 p-2 md:p-3 rounded border border-slate-800 text-center w-20 md:w-24">
-                                        <div className="text-xl md:text-2xl">💤</div>
-                                        <div className="text-[9px] md:text-[10px] text-slate-400 mt-1 font-bold">睡魔</div>
-                                    </div>
-                                    <div className="bg-slate-900/80 p-2 md:p-3 rounded border border-slate-800 text-center w-20 md:w-24">
-                                        <div className="text-xl md:text-2xl">📱</div>
-                                        <div className="text-[9px] md:text-[10px] text-slate-400 mt-1 font-bold">誘惑</div>
-                                    </div>
-                                    <div className="bg-slate-900/80 p-2 md:p-3 rounded border border-slate-800 text-center w-20 md:w-24">
-                                        <div className="text-xl md:text-2xl">🔥</div>
-                                        <div className="text-[9px] md:text-[10px] text-slate-400 mt-1 font-bold">脅威</div>
-                                    </div>
+                                <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 font-tech mb-6 max-w-[200px] mx-auto text-left">
+                                    <div>Rank F: 0+</div>
+                                    <div>Rank C: 22,000+</div>
+                                    <div>Rank D: 12,000+</div>
+                                    <div>Rank A: 55,000+</div>
+                                    <div className="col-span-2 text-center text-yellow-400 font-bold mt-1">Rank S: 80,000+</div>
                                 </div>
 
                                 <button 
@@ -680,36 +727,36 @@
 
                     {/* Game Over Screen */}
                     {gameState === GAME_STATE.GAMEOVER && (
-                        <div className="ui-layer interactive-ui bg-red-950/95 backdrop-blur-md flex items-center justify-center z-50">
+                        <div className="ui-layer interactive-ui bg-slate-950/95 backdrop-blur-md flex items-center justify-center z-50">
                             <div className="text-center p-6 md:p-8 animate-bounce-in max-w-md w-11/12">
                                 <h2 className="text-4xl md:text-6xl font-black text-red-500 mb-2 tracking-tighter glow-text-red font-tech">
                                     SYSTEM<br/>FAILURE
                                 </h2>
-                                <p className="text-red-200/80 mb-6 md:mb-8 font-bold text-sm md:text-lg">
-                                    集中力が限界に達しました。<br/>
-                                    防御システムダウン。
-                                </p>
                                 
-                                <div className="bg-slate-900/90 p-6 md:p-8 rounded-2xl border border-red-900/50 mb-8 shadow-2xl relative overflow-hidden">
-                                    {score >= TARGET_SCORE && (
-                                        <div className="absolute top-0 right-0 bg-yellow-500 text-black font-black text-xs px-2 py-1 font-tech transform rotate-0">
-                                            RANK S
-                                        </div>
-                                    )}
-                                    <div className="text-slate-500 text-xs uppercase tracking-widest mb-2 font-tech">FINAL SCORE</div>
-                                    <div className="text-4xl md:text-6xl font-tech font-bold text-white mb-2 glow-text-blue">
+                                <div className="bg-slate-900/90 p-6 md:p-8 rounded-2xl border border-slate-700 mb-8 shadow-2xl relative overflow-hidden mt-4">
+                                    <div className="text-slate-500 text-xs uppercase tracking-widest mb-2 font-tech">MISSION RESULT</div>
+                                    
+                                    <div className="flex justify-center items-baseline gap-2 mb-4">
+                                        <span className="text-slate-400 text-sm font-bold">RANK</span>
+                                        <span className={`text-8xl font-black font-tech ${currentRank.color} drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]`}>
+                                            {currentRank.id}
+                                        </span>
+                                    </div>
+
+                                    <div className="text-3xl md:text-4xl font-tech font-bold text-white mb-2 glow-text-blue">
                                         {score.toLocaleString()}
                                     </div>
                                     
-                                    <div className="flex justify-center items-center gap-2 text-sm font-bold mt-4">
-                                        {score >= TARGET_SCORE ? (
-                                            <span className="text-yellow-400 flex items-center gap-1">
-                                                {/* FIX: Replaced Lucide Icon with Emoji to prevent crash */}
-                                                <span>🏆</span> S-RANK ACHIEVED!
+                                    <div className="text-sm mt-4">
+                                        {rankInfo.next ? (
+                                            <span className="text-slate-400">
+                                                NEXT RANK: <span className="text-white font-bold">{rankInfo.next.min.toLocaleString()}</span>
+                                                <br/>
+                                                <span className="text-xs opacity-70">あと { (rankInfo.next.min - score).toLocaleString() } ポイント</span>
                                             </span>
                                         ) : (
-                                            <span className="text-slate-400">
-                                                NEXT RANK: {(TARGET_SCORE).toLocaleString()}
+                                            <span className="text-yellow-400 font-bold text-lg animate-pulse">
+                                                <span>🏆</span> LEGENDARY DEFENSE!
                                             </span>
                                         )}
                                     </div>
