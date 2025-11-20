@@ -14,7 +14,8 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap');
 
         html, body {
-            height: 100%;
+            height: 100%; /* Fallback */
+            height: 100dvh; /* Dynamic Viewport Height for Mobile */
             margin: 0;
             padding: 0;
             overflow: hidden; /* スクロール禁止 */
@@ -55,12 +56,14 @@
         /* コントロールエリア（画面下部固定） */
         #controls-area {
             height: 120px; /* 固定高さ */
+            min-height: 120px;
             background-color: #ffffff;
             border-top: 1px solid #cbd5e1;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 0 20px;
+            padding-bottom: env(safe-area-inset-bottom, 20px); /* iPhone X系対応 */
             box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
             z-index: 20;
         }
@@ -72,7 +75,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none; /* 下のCanvasをクリック可能に（今回はボタン操作メインだが念のため） */
+            pointer-events: none; 
             z-index: 10;
         }
 
@@ -251,7 +254,7 @@
             width = newW;
             height = newH;
             
-            // リサイズ時にビューポートを強制更新して見切れを防ぐ
+            // リサイズ時にビューポートを強制更新
             if (isGameActive) {
                 Render.lookAt(render, {
                     min: { x: 0, y: cameraY },
@@ -303,7 +306,7 @@
         isGameActive = true;
         score = 0;
         stack = [];
-        cameraY = 0;
+        cameraY = 0; // カメラ位置を完全にリセット
         updateScoreDisplay();
 
         // メニューを隠す
@@ -317,9 +320,10 @@
 
         // 物理ワールドのリセット（重要）
         Composite.clear(engine.world);
-        Engine.clear(engine); // キャッシュ等のクリア
+        Engine.clear(engine); 
 
         // 台座の作成
+        // 少し浮かせてバランスをとる
         const platformY = height - 60; 
         platformBody = Bodies.rectangle(width / 2, platformY, CONFIG.platform.w, CONFIG.platform.h, {
             isStatic: true,
@@ -337,7 +341,7 @@
 
         Composite.add(engine.world, [platformBody, killZone]);
 
-        // カメラリセット
+        // カメラリセットを明示的に実行
         Render.lookAt(render, {
             min: { x: 0, y: 0 },
             max: { x: width, y: height }
@@ -376,9 +380,9 @@
     function spawnPreview() {
         if (!isGameActive) return;
 
-        // プレビュー位置（初期Y座標）
-        // カメラ位置 + 画面高さの15%
-        const previewY = cameraY + (height * 0.15);
+        // 【修正】プレビュー位置を下げる
+        // 以前は0.15 (15%) だったが、上すぎて見切れるため 0.25 (25%) に変更
+        const previewY = cameraY + (height * 0.25);
 
         // プレビュー用のデータオブジェクトを作成（物理ボディではない）
         currentPreview = {
@@ -427,7 +431,8 @@
             // sin波で左右移動
             const offsetX = Math.sin(time * CONFIG.swing.speed) * (width * CONFIG.swing.rangeRatio / 2);
             currentPreview.x = (width / 2) + offsetX;
-            currentPreview.y = cameraY + (height * 0.15);
+            // 【修正】常に画面上部から25%の位置に固定
+            currentPreview.y = cameraY + (height * 0.25);
         }
 
         // 2. カメラ追従 (Camera Follow)
@@ -436,20 +441,19 @@
             let highestY = platformBody.position.y; // スタート地点
             
             stack.forEach(body => {
-                // 【重要修正】落下中（速度が速い）の消しゴムは高さ計算に含めない
-                // これをしないと、スポーンした瞬間の高い位置にある消しゴムに合わせてカメラが上に飛んでしまう
-                // 速度1.0未満（ほぼ静止かゆっくり動いている）ものだけをターゲットにする
+                // 【重要】落下中の物体（速度が速い）はカメラ計算から除外
+                // これがないと生成された瞬間の高い位置にカメラが反応して上へ飛んでしまう
                 if (body.speed < 1.0 && body.position.y < highestY) {
                     highestY = body.position.y;
                 }
             });
 
-            // 目標：最高地点が画面の55%くらいの位置に来るように（上45%を空ける）
+            // 目標：最高地点が画面の55%くらいの位置に来るように
             const targetCameraY = highestY - (height * 0.55);
             
             // カメラは上にしか行かない（または現在の位置より高ければ移動）
             if (targetCameraY < cameraY) {
-                // スムーズに移動 (Linear Interpolation)
+                // スムーズに移動
                 cameraY += (targetCameraY - cameraY) * 0.05;
                 
                 // Renderのビューポートを更新
