@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Just 1.00s | 体内時計の限界</title>
+    <title>Just 1.00s</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,13 +18,11 @@
             overflow: hidden;
         }
 
-        /* Pulse Animation */
-        @keyframes pulse-ring {
-            0% { transform: scale(0.8); opacity: 0.5; box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.1); }
-            70% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 20px rgba(255, 255, 255, 0); }
-            100% { transform: scale(0.8); opacity: 0.5; box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+        /* カスタムスクロールバー非表示 */
+        ::-webkit-scrollbar {
+            display: none;
         }
-        
+
         /* Pop Animation */
         @keyframes pop-in {
             0% { transform: scale(0.8); opacity: 0; filter: blur(10px); }
@@ -35,11 +33,11 @@
             animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
 
-        /* Legendary Glow */
+        /* Legendary Glow - 範囲を広げて見切れ防止 */
         @keyframes glow-gold {
-            0% { text-shadow: 0 0 10px #FFD700, 0 0 20px #FFD700; color: #fff; }
-            50% { text-shadow: 0 0 30px #FFD700, 0 0 50px #FFA500; color: #FFD700; }
-            100% { text-shadow: 0 0 10px #FFD700, 0 0 20px #FFD700; color: #fff; }
+            0% { text-shadow: 0 0 20px rgba(255, 215, 0, 0.5), 0 0 40px rgba(255, 215, 0, 0.3); color: #fff; }
+            50% { text-shadow: 0 0 40px rgba(255, 215, 0, 0.8), 0 0 80px rgba(255, 165, 0, 0.6); color: #FFD700; }
+            100% { text-shadow: 0 0 20px rgba(255, 215, 0, 0.5), 0 0 40px rgba(255, 215, 0, 0.3); color: #fff; }
         }
         .legendary-glow {
             animation: glow-gold 2s infinite;
@@ -55,84 +53,124 @@
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
         }
 
+        .glass-select {
+            appearance: none;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            outline: none;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .glass-select:focus {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        /* Select arrow customization hack */
+        .select-wrapper {
+            position: relative;
+        }
+        .select-wrapper::after {
+            content: '▼';
+            font-size: 0.5rem;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255,255,255,0.3);
+            pointer-events: none;
+        }
+
         .tap-area {
             transition: background-color 0.2s ease;
         }
         .tap-area:active {
             background-color: rgba(255,255,255,0.03);
         }
-
-        /* Utility for absolute centering */
-        .absolute-center {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col items-center justify-between py-8 select-none bg-gradient-to-b from-[#0f0f12] to-[#1a1a20]">
+<body class="h-screen w-screen flex flex-col items-center justify-between py-6 select-none bg-gradient-to-b from-[#0f0f12] to-[#1a1a20]">
 
     <!-- Header -->
-    <header class="w-full px-6 flex justify-between items-center z-10">
-        <div>
-            <h1 class="text-xl font-black tracking-tight text-white/90 italic">Just 1.00s</h1>
-            <p class="text-[10px] text-white/40 tracking-wider font-medium">体内時計限界チャレンジ</p>
+    <header class="w-full px-6 flex justify-between items-center z-20 h-16">
+        <div class="flex flex-col">
+            <h1 class="text-xl font-black tracking-tight text-white/90 italic leading-none">Just <span id="titleTarget">1.00</span>s</h1>
+            <p class="text-[10px] text-white/40 tracking-wider font-medium mt-1">体内時計限界チャレンジ</p>
         </div>
-        <div class="text-right">
-            <div class="text-[10px] text-white/40 uppercase tracking-widest mb-0.5">自己ベスト</div>
-            <div id="bestScore" class="text-lg font-mono text-white/80 tabular-nums">--.---</div>
+        
+        <div class="flex items-center space-x-4">
+            <!-- Mode Selector -->
+            <div class="select-wrapper">
+                <select id="timeSelect" class="glass-select w-24 font-mono" onchange="changeTargetTime(this.value)">
+                    <option value="1">1.00s</option>
+                    <option value="5">5.00s</option>
+                    <option value="10">10.00s</option>
+                    <option value="30">30.00s</option>
+                    <option value="60">60.00s</option>
+                </select>
+            </div>
+
+            <div class="text-right min-w-[60px]">
+                <div class="text-[9px] text-white/40 uppercase tracking-widest mb-0.5">BEST</div>
+                <div id="bestScore" class="text-sm font-mono text-white/80 tabular-nums">--.---</div>
+            </div>
         </div>
     </header>
 
     <!-- Main Interaction Area -->
-    <main id="clickArea" class="flex-1 w-full flex flex-col items-center justify-center cursor-pointer tap-area relative z-20 group">
+    <main id="clickArea" class="flex-1 w-full flex flex-col items-center justify-center cursor-pointer tap-area relative z-10 group">
         
         <!-- Decorative Rings -->
-        <div id="statusRing" class="absolute w-72 h-72 rounded-full border border-white/5 flex items-center justify-center transition-all duration-700 ease-out">
+        <div id="statusRing" class="absolute w-72 h-72 rounded-full border border-white/5 flex items-center justify-center transition-all duration-700 ease-out pointer-events-none">
             <div id="innerCircle" class="w-60 h-60 rounded-full bg-white/[0.02] flex items-center justify-center backdrop-blur-sm transition-all duration-500 border border-white/0 group-hover:border-white/10">
             </div>
         </div>
 
-        <!-- Main Display -->
-        <div class="relative z-30 text-center flex flex-col items-center justify-center w-full">
+        <!-- Main Display Container -->
+        <!-- overflow-visibleと十分なパディングを設定して光彩切れを防止 -->
+        <div class="relative z-30 text-center flex flex-col items-center justify-center w-full pointer-events-none overflow-visible p-12">
             
             <!-- Rank/Message -->
             <div id="feedbackText" class="h-8 text-sm font-bold tracking-[0.2em] text-white/50 mb-2 flex items-center justify-center transition-all duration-300">
                 TAP TO START
             </div>
 
-            <!-- Timer -->
-            <div class="relative h-24 md:h-32 flex items-center justify-center overflow-visible">
-                 <!-- 計測中に表示するプレースホルダー（雰囲気を出す） -->
+            <!-- Timer Area -->
+            <div class="relative h-24 md:h-32 w-full flex items-center justify-center overflow-visible">
+                 <!-- 計測中のインジケータ -->
                  <div id="measuringIndicator" class="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 text-4xl text-white/10 font-thin tracking-[0.5em]">
                     Wait...
                 </div>
                 
                 <!-- 結果表示用タイマー -->
-                <div id="timerDisplay" class="text-7xl md:text-8xl font-thin font-mono tracking-tighter tabular-nums transition-all duration-100 leading-none text-white">
-                    0.000
+                <!-- 初期クラスはシンプルに。JSで毎回リセットする -->
+                <div id="timerDisplay" class="text-7xl md:text-8xl font-thin font-mono tracking-tighter tabular-nums transition-all duration-100 leading-none text-white drop-shadow-2xl">
+                    1.000
                 </div>
             </div>
 
             <!-- Diff / Sub-message -->
-            <div id="diffDisplay" class="h-6 mt-4 text-xs font-mono text-white/40 opacity-0 transition-opacity duration-500">
+            <div id="diffDisplay" class="h-6 mt-6 text-xs font-mono text-white/40 opacity-0 transition-opacity duration-500">
                 誤差: 0.000秒
             </div>
         </div>
 
         <!-- Bottom Instruction -->
-        <div id="instruction" class="absolute bottom-[15%] text-white/20 text-xs font-light tracking-widest transition-all duration-500">
-            画面を見ずに 1.000秒 で止めろ
+        <div id="instruction" class="absolute bottom-[15%] text-white/20 text-xs font-light tracking-widest transition-all duration-500 pointer-events-none">
+            画面を見ずに <span id="targetTimeDisplay">1.000</span>秒 で止めろ
         </div>
     </main>
 
     <!-- Footer / History -->
-    <footer class="w-full px-6 pb-6 z-10">
+    <footer class="w-full px-6 pb-6 z-20">
         <div class="glass-panel p-4 w-full max-w-md mx-auto">
             <div class="flex justify-between items-end mb-3 border-b border-white/5 pb-2">
                 <span class="text-[10px] text-white/40 uppercase tracking-widest">履歴 (直近5回)</span>
-                <button onclick="resetHistory()" class="text-[10px] text-white/20 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-white/5">リセット</button>
+                <button onclick="resetHistory(event)" class="text-[10px] text-white/20 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-white/5">リセット</button>
             </div>
             <div id="historyList" class="flex justify-between items-center h-10">
                 <!-- JS injects here -->
@@ -146,6 +184,7 @@
         const state = {
             status: 'idle', // idle, running, result
             startTime: 0,
+            targetTime: 1.000, // 秒
             bestDiff: Infinity,
             history: []
         };
@@ -161,7 +200,10 @@
             innerCircle: document.getElementById('innerCircle'),
             bestScore: document.getElementById('bestScore'),
             historyList: document.getElementById('historyList'),
-            instruction: document.getElementById('instruction')
+            instruction: document.getElementById('instruction'),
+            targetTimeDisplay: document.getElementById('targetTimeDisplay'),
+            titleTarget: document.getElementById('titleTarget'),
+            timeSelect: document.getElementById('timeSelect')
         };
 
         // --- Audio (Synth) ---
@@ -185,6 +227,7 @@
         }
 
         function playChord(type) {
+            const now = audioCtx.currentTime;
             if (type === 'success') {
                 playTone(880, 'sine', 0.6, 0.1); // A5
                 setTimeout(() => playTone(1108, 'sine', 0.8, 0.1), 100); // C#6
@@ -196,13 +239,42 @@
             }
         }
 
+        // --- Configuration Change ---
+        function changeTargetTime(val) {
+            state.targetTime = parseFloat(val);
+            state.bestDiff = Infinity;
+            state.history = [];
+            state.status = 'idle';
+            
+            // Update UI texts
+            const formattedTarget = state.targetTime.toFixed(2); // 1.00, 30.00
+            els.targetTimeDisplay.textContent = state.targetTime.toFixed(3);
+            els.titleTarget.textContent = formattedTarget;
+            
+            // Reset Displays
+            els.timerDisplay.textContent = state.targetTime.toFixed(3);
+            resetDisplayStyles(); // スタイルもリセット
+            els.timerDisplay.classList.remove('invisible');
+            
+            els.bestScore.textContent = "--.---";
+            els.bestScore.classList.remove('text-yellow-400');
+            
+            els.feedbackText.textContent = "TAP TO START";
+            els.feedbackText.className = "h-8 text-sm font-bold tracking-[0.2em] text-white/50 mb-2 flex items-center justify-center";
+            
+            els.diffDisplay.classList.add('opacity-0');
+            renderHistory();
+            
+            // Blur focus from select to prevent spacebar triggering change
+            els.timeSelect.blur();
+        }
+
         // --- Logic ---
 
         function handleInteraction(e) {
-            if (e.type === 'touchstart') e.preventDefault(); // 遅延対策
-            
-            // リセットボタンなどを押した時の伝播防止は別途
-            if (e.target.tagName === 'BUTTON') return;
+            if (e.type === 'touchstart') e.preventDefault();
+            // Header/Footerのクリックは無視
+            if (e.target.closest('header') || e.target.closest('footer')) return;
 
             if (state.status === 'idle' || state.status === 'result') {
                 startGame();
@@ -211,14 +283,20 @@
             }
         }
 
+        function resetDisplayStyles() {
+            // ★重要: ここでクラス名を文字列で完全に上書きして、前回の光彩などが残らないようにする
+            // 基本クラスのみを定義
+            const baseClasses = "text-7xl md:text-8xl font-thin font-mono tracking-tighter tabular-nums transition-all duration-100 leading-none text-white drop-shadow-2xl";
+            els.timerDisplay.className = baseClasses;
+        }
+
         function startGame() {
             state.status = 'running';
             state.startTime = performance.now();
             
-            // 表示リセット
-            // ★ここが重要: visibility: hidden で完全に隠す
+            // 表示リセット (完全隠蔽)
+            resetDisplayStyles();
             els.timerDisplay.classList.add('invisible');
-            els.timerDisplay.classList.remove('animate-pop', 'legendary-glow', 'text-green-400', 'text-blue-400', 'text-rose-400', 'text-gray-400', 'text-yellow-400');
             
             // 計測中の演出
             els.measuringIndicator.classList.remove('opacity-0');
@@ -241,19 +319,19 @@
             state.status = 'result';
             const endTime = performance.now();
             const elapsed = (endTime - state.startTime) / 1000;
-            const diff = Math.abs(1.000 - elapsed);
+            const target = state.targetTime;
+            const diff = Math.abs(target - elapsed);
             
-            updateDisplay(elapsed, diff);
+            updateDisplay(elapsed, diff, target);
             updateHistory(elapsed);
         }
 
-        function updateDisplay(elapsed, diff) {
+        function updateDisplay(elapsed, diff, target) {
             // 表示を戻す
             els.measuringIndicator.classList.add('opacity-0');
             els.measuringIndicator.classList.remove('animate-pulse');
             els.timerDisplay.classList.remove('invisible');
             
-            // 少しだけ遅らせてアニメーションを発火させることでDOM更新を確実にする
             requestAnimationFrame(() => {
                 els.timerDisplay.classList.add('animate-pop');
             });
@@ -261,37 +339,46 @@
             const formattedTime = elapsed.toFixed(3);
             els.timerDisplay.textContent = formattedTime;
 
-            // 評価ロジック（辛口＆称賛）
+            // --- 難易度調整付き評価ロジック ---
+            // 時間が長いほど、許容誤差(tolerance)を少し緩める
+            // 基準(1s): Perfect=0, SSS=0.5%, S=2%
+            // 補正: root(target) を掛けることで、長時間ほど緩くするが、線形よりは厳しくする
+            const toleranceScale = Math.max(1, Math.sqrt(target)); // 1s->1, 5s->2.23, 30s->5.47, 60s->7.74
+            
+            // 閾値計算 (秒数)
+            const th_SSS = 0.005 * toleranceScale; // 1s:0.005, 60s:0.038
+            const th_SS  = 0.020 * toleranceScale; // 1s:0.020, 60s:0.155
+            const th_S   = 0.050 * toleranceScale; // 1s:0.050, 60s:0.387
+            const th_A   = 0.100 * toleranceScale; 
+
             let colorClass = "";
             let title = "";
+            let isSuccess = false;
             
             if (diff === 0) {
-                // 1.000 ジャスト
                 title = "神の領域";
-                colorClass = "legendary-glow";
+                colorClass = "legendary-glow text-white";
                 triggerConfetti();
                 playChord('success');
-            } else if (diff <= 0.005) {
-                // 0.995 - 1.005
+                isSuccess = true;
+            } else if (diff <= th_SSS) {
                 title = "時間停止能力者";
-                colorClass = "text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]";
+                colorClass = "text-yellow-400 drop-shadow-[0_0_25px_rgba(250,204,21,0.6)]";
                 playTone(880, 'sine', 0.5);
-            } else if (diff <= 0.020) {
-                // 0.980 - 1.020
+                isSuccess = true;
+            } else if (diff <= th_SS) {
                 title = "精密機械";
-                colorClass = "text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]";
+                colorClass = "text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]";
                 playTone(660, 'sine', 0.3);
-            } else if (diff <= 0.050) {
-                // 0.950 - 1.050
+            } else if (diff <= th_S) {
                 title = "達人レベル";
                 colorClass = "text-emerald-400";
                 playTone(550, 'sine', 0.2);
-            } else if (diff <= 0.100) {
-                // 0.900 - 1.100
+            } else if (diff <= th_A) {
                 title = "一般人";
                 colorClass = "text-white/90";
                 playTone(440, 'triangle', 0.2);
-            } else if (diff <= 0.300) {
+            } else if (diff <= th_A * 3) {
                 title = "体内時計故障中";
                 colorClass = "text-rose-300";
                 playChord('bad');
@@ -301,23 +388,23 @@
                 playChord('bad');
             }
 
-            // 特別なゾロ目隠しメッセージ
-            if (formattedTime === "1.111" || formattedTime === "2.222" || formattedTime === "3.333") {
-                title = "ゾロ目賞 (はずれ)";
-                colorClass = "text-purple-400";
-            }
-
-            els.timerDisplay.classList.add(...colorClass.split(' '));
+            // クラス適用 (既存クラスにスペース区切りで追加)
+            els.timerDisplay.className += " " + colorClass;
             
             els.feedbackText.textContent = title;
-            els.feedbackText.className = `h-8 text-sm font-bold tracking-[0.2em] uppercase mb-2 flex items-center justify-center ${diff <= 0.05 ? colorClass.split(' ')[0] : 'text-white/60'}`;
+            // feedbackTextの色設定（クラス名から色部分だけ抽出する簡易ロジック）
+            let feedbackColor = "text-white/60";
+            if (colorClass.includes('legendary')) feedbackColor = "text-yellow-100";
+            else if (colorClass.includes('text-')) feedbackColor = colorClass.split(' ').find(c => c.startsWith('text-')) || feedbackColor;
+            
+            els.feedbackText.className = `h-8 text-sm font-bold tracking-[0.2em] uppercase mb-2 flex items-center justify-center ${feedbackColor}`;
 
             // 誤差表示
-            const sign = elapsed > 1.0 ? "+" : "-";
+            const sign = elapsed > target ? "+" : "-";
             els.diffDisplay.textContent = `誤差: ${sign}${diff.toFixed(3)}秒`;
             els.diffDisplay.classList.remove('opacity-0');
 
-            // リングのリセット
+            // リングリセット
             els.statusRing.classList.remove('scale-125', 'border-blue-500/30');
             els.innerCircle.classList.remove('bg-blue-500/5', 'scale-90');
             
@@ -331,8 +418,6 @@
             if (diff < state.bestDiff) {
                 state.bestDiff = diff;
                 els.bestScore.textContent = formattedTime;
-                
-                // ベスト更新エフェクト
                 els.bestScore.classList.add('text-yellow-400', 'scale-110');
                 setTimeout(() => els.bestScore.classList.remove('scale-110'), 200);
             }
@@ -351,36 +436,40 @@
                  return;
             }
 
+            const target = state.targetTime;
+            // 履歴の判定基準も動的に
+            const toleranceScale = Math.max(1, Math.sqrt(target));
+            const th_Good = 0.050 * toleranceScale;
+
             state.history.forEach(time => {
-                const diff = Math.abs(1.000 - time);
+                const diff = Math.abs(target - time);
                 let color = "text-white/30";
                 let border = "border-white/5";
                 
                 if (diff === 0) color = "text-yellow-400 font-bold";
-                else if (diff <= 0.02) color = "text-cyan-400";
-                else if (diff <= 0.05) color = "text-emerald-400";
+                else if (diff <= th_Good / 2) color = "text-cyan-400";
+                else if (diff <= th_Good) color = "text-emerald-400";
                 
                 const div = document.createElement('div');
                 div.className = `flex flex-col items-center justify-center w-full h-full border-r last:border-0 ${border} ${color}`;
-                div.innerHTML = `<span class="text-xs font-mono">${time.toFixed(3)}</span>`;
+                div.innerHTML = `<span class="text-xs font-mono">${time.toFixed(2)}</span>`; // スペース都合で2桁
                 els.historyList.appendChild(div);
             });
         }
         
-        function resetHistory() {
+        function resetHistory(e) {
+            if(e) e.stopPropagation();
             state.history = [];
             state.bestDiff = Infinity;
             els.bestScore.textContent = "--.---";
             els.bestScore.classList.remove('text-yellow-400');
             renderHistory();
-            // イベントバブリング防止はHTML側のonclick属性で制御できないため、ここでUIリセットのみ
         }
 
-        // 紙吹雪演出 (Web API only, no external lib)
+        // Confetti
         function triggerConfetti() {
             const colors = ['#FFD700', '#FFF', '#22d3ee'];
             const container = document.body;
-            
             for(let i=0; i<60; i++) {
                 const conf = document.createElement('div');
                 conf.style.position = 'fixed';
@@ -392,7 +481,6 @@
                 conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
                 conf.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
                 
-                // Random direction
                 const angle = Math.random() * Math.PI * 2;
                 const velocity = 150 + Math.random() * 250;
                 const tx = Math.cos(angle) * velocity;
@@ -401,7 +489,6 @@
                 conf.style.transition = `transform 1s cubic-bezier(0.25, 1, 0.5, 1), opacity 1s ease-in`;
                 container.appendChild(conf);
                 
-                // Trigger animation next frame
                 requestAnimationFrame(() => {
                     conf.style.transform = `translate(${tx}px, ${ty}px) rotate(${Math.random()*720}deg)`;
                     conf.style.opacity = 0;
@@ -414,6 +501,9 @@
         // --- Event Listeners ---
         const isTouch = 'ontouchstart' in window;
         els.clickArea.addEventListener(isTouch ? 'touchstart' : 'click', handleInteraction);
+        
+        // 初期化
+        changeTargetTime(1);
 
     </script>
 </body>
