@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Slice Hero - Infinite Cut</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            touch-action: none;
+            overflow: hidden;
+            background-color: #0f172a; /* Dark theme for focus */
+            color: white;
+        }
+
+        canvas {
+            touch-action: none;
+        }
+
+        .glitch-text {
+            text-shadow: 2px 2px 0px #ec4899, -2px -2px 0px #6366f1;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .floating { animation: float 3s ease-in-out infinite; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .shake { animation: shake 0.2s ease-in-out; }
+
+        .ui-panel {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen relative overflow-hidden">
+
+    <!-- Background Effects -->
+    <div class="absolute inset-0 z-0 opacity-20 pointer-events-none">
+        <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-600 rounded-full blur-[100px]"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600 rounded-full blur-[100px]"></div>
+    </div>
+
+    <!-- Game Container -->
+    <div class="relative z-10 w-full h-full flex flex-col">
+        
+        <!-- HUD -->
+        <div class="flex justify-between items-center p-4 sm:p-6 select-none">
+            <!-- Score & Combo -->
+            <div>
+                <div class="text-xs text-slate-400 font-bold tracking-widest uppercase">SCORE</div>
+                <div class="text-3xl font-black font-mono tracking-tighter" id="scoreDisplay">0</div>
+                <div id="comboDisplay" class="text-sm font-bold text-yellow-400 opacity-0 transition-opacity h-5">COMBO x2</div>
+            </div>
+
+            <!-- Timer -->
+            <div class="flex flex-col items-end w-1/3">
+                <div class="text-xs text-slate-400 font-bold tracking-widest uppercase mb-1">TIME</div>
+                <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                    <div id="timerBar" class="h-full bg-gradient-to-r from-green-400 to-emerald-500 w-full transition-all duration-100 ease-linear"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="flex-1 relative flex items-center justify-center">
+            <canvas id="gameCanvas" class="absolute inset-0 w-full h-full"></canvas>
+            
+            <!-- Floating Feedback Text -->
+            <div id="feedbackContainer" class="absolute pointer-events-none flex flex-col items-center justify-center">
+                <!-- Generated dynamically -->
+            </div>
+        </div>
+
+        <!-- Start Screen Overlay -->
+        <div id="startScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 z-50 backdrop-blur-md transition-opacity duration-500">
+            <h1 class="text-5xl md:text-7xl font-black mb-2 glitch-text tracking-tighter text-center">SLICE<br>HERO</h1>
+            <p class="text-slate-300 mb-8 text-center max-w-xs text-sm md:text-base">
+                有機的に生成される図形を<br>
+                指でなぞって50:50に切り裂け
+            </p>
+            <button id="startBtn" class="group relative px-8 py-4 bg-white text-slate-900 font-black text-xl rounded-full hover:scale-105 transition-transform active:scale-95 overflow-hidden">
+                <span class="relative z-10">GAME START</span>
+                <div class="absolute inset-0 bg-gradient-to-r from-indigo-400 to-pink-400 opacity-0 group-hover:opacity-20 transition-opacity"></div>
+            </button>
+        </div>
+
+        <!-- Result Screen Overlay -->
+        <div id="resultScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/95 z-50 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-500">
+            <h2 class="text-4xl font-bold text-white mb-2">TIME UP</h2>
+            <div class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-pink-400 mb-6" id="finalScore">0</div>
+            
+            <div class="grid grid-cols-2 gap-8 mb-8 text-center">
+                <div>
+                    <p class="text-xs text-slate-400 uppercase">Perfect Cuts</p>
+                    <p class="text-2xl font-bold" id="finalPerfects">0</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400 uppercase">Max Combo</p>
+                    <p class="text-2xl font-bold" id="finalCombo">0</p>
+                </div>
+            </div>
+
+            <button id="restartBtn" class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-full hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/30">
+                TRY AGAIN
+            </button>
+        </div>
+    </div>
+
+<script>
+/**
+ * Slice Hero - Advanced Image Processing Game Engine
+ * * Uses pixel-level analysis (Flood Fill algorithm) to determine the area of 
+ * irregular, procedurally generated shapes after freehand slicing.
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d', { willReadFrequently: true }); // Optimize for pixel reading
+let dpr = window.devicePixelRatio || 1;
+
+// Game Configuration
+const CFG = {
+    initialTime: 60,
+    colors: ['#FF3B30', '#FF9500', '#FFCC00', '#4CD964', '#5AC8FA', '#007AFF', '#5856D6', '#FF2D55'],
+    bgShapeColor: '#1e293b', // Dark slate for contrast
+    sliceWidth: 6, // Width of the cut
+    perfectThreshold: 2.0, // 50% +/- 2%
+    greatThreshold: 5.0,
+    goodThreshold: 10.0
+};
+
+// State
+let state = {
+    phase: 'menu', // menu, playing, result
+    score: 0,
+    timeLeft: CFG.initialTime,
+    combo: 0,
+    maxCombo: 0,
+    perfectCount: 0,
+    polygons: [], // Not used for logic anymore, but for reference if needed
+    currentPath: [], // User's drawing path
+    isDrawing: false,
+    currentShapeColor: '',
+    parts: [], // Separated image parts
+    lastTime: 0
+};
+
+// --- 1. Procedural Shape Generation ---
+
+function generateOrganicShape(w, h) {
+    // Create a canvas element just for the shape generation
+    const size = Math.min(w, h) * 0.6;
+    const cx = w / 2;
+    const cy = h / 2;
+    
+    const vertices = [];
+    const numPoints = 8 + Math.floor(Math.random() * 8); // 8 to 16 points
+    const angleStep = (Math.PI * 2) / numPoints;
+    
+    // Generate noisy radius for each point
+    for (let i = 0; i < numPoints; i++) {
+        const angle = i * angleStep;
+        // Base radius + random variation
+        const r = (size / 2) * (0.5 + Math.random() * 0.8); 
+        vertices.push({
+            x: cx + Math.cos(angle) * r,
+            y: cy + Math.sin(angle) * r
+        });
+    }
+
+    return vertices;
+}
+
+function drawOrganicShape(ctx, vertices, color) {
+    if (vertices.length < 3) return;
+    ctx.beginPath();
+    ctx.moveTo(vertices[0].x, vertices[0].y);
+    
+    // Use quadratic curves for smooth "blob" look
+    for (let i = 0; i < vertices.length; i++) {
+        const p0 = vertices[i];
+        const p1 = vertices[(i + 1) % vertices.length];
+        const midX = (p0.x + p1.x) / 2;
+        const midY = (p0.y + p1.y) / 2;
+        ctx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+    }
+    
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    
+    // Inner shadow/highlight for 3D effect
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+}
+
+// --- 2. Game Loop & Logic ---
+
+function init() {
+    resize();
+    window.addEventListener('resize', resize);
+    requestAnimationFrame(loop);
+}
+
+function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    // We don't scale ctx by dpr here to keep pixel manipulation performant. 
+    // We just handle coordinates carefully.
+    
+    if (state.phase === 'menu') {
+        // Draw a demo shape in bg
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const shape = generateOrganicShape(canvas.width, canvas.height);
+        drawOrganicShape(ctx, shape, '#334155');
+    }
+}
+
+function startGame() {
+    state = {
+        phase: 'playing',
+        score: 0,
+        timeLeft: CFG.initialTime,
+        combo: 0,
+        maxCombo: 0,
+        perfectCount: 0,
+        currentPath: [],
+        isDrawing: false,
+        parts: [],
+        lastTime: performance.now(),
+        currentShapeColor: CFG.colors[Math.floor(Math.random() * CFG.colors.length)]
+    };
+
+    updateUI();
+    spawnNewShape();
+    
+    document.getElementById('startScreen').style.opacity = '0';
+    document.getElementById('startScreen').style.pointerEvents = 'none';
+    document.getElementById('resultScreen').style.opacity = '0';
+    document.getElementById('resultScreen').style.pointerEvents = 'none';
+}
+
+function spawnNewShape() {
+    state.parts = []; // Clear falling parts
+    state.currentPath = [];
+    state.currentShapeColor = CFG.colors[Math.floor(Math.random() * CFG.colors.length)];
+    
+    // Clear canvas and draw new shape
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const shape = generateOrganicShape(canvas.width, canvas.height);
+    drawOrganicShape(ctx, shape, state.currentShapeColor);
+    
+    // Save this state as the "Base Image" for hit testing/resetting if needed
+    // For this game, we just keep drawing on the main canvas.
+}
+
+// --- 3. Input Handling (Freehand) ---
+
+function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('touchstart', startDraw, {passive: false});
+window.addEventListener('mousemove', drawMove);
+window.addEventListener('touchmove', drawMove, {passive: false});
+window.addEventListener('mouseup', endDraw);
+window.addEventListener('touchend', endDraw);
+
+function startDraw(e) {
+    if (state.phase !== 'playing') return;
+    if (state.parts.length > 0) return; // Wait for animation
+    e.preventDefault();
+    state.isDrawing = true;
+    state.currentPath = [getPos(e)];
+}
+
+function drawMove(e) {
+    if (!state.isDrawing) return;
+    // e.preventDefault(); // Optional: prevent scrolling
+    const pos = getPos(e);
+    state.currentPath.push(pos);
+    
+    // Visual feedback of the cut line
+    renderGame();
+}
+
+function endDraw(e) {
+    if (!state.isDrawing) return;
+    state.isDrawing = false;
+    
+    // Perform the Cut
+    if (state.currentPath.length > 5) { // Ignore tiny taps
+        performCut();
+    } else {
+        state.currentPath = [];
+        renderGame(); // Clear line
+    }
+}
+
+// --- 4. The Core: Image Analysis (Flood Fill) ---
+
+function performCut() {
+    // 1. Apply the "Eraser" to the canvas to simulate cutting
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.moveTo(state.currentPath[0].x, state.currentPath[0].y);
+    for (let i = 1; i < state.currentPath.length; i++) {
+        // Curve fitting for smoother cut
+        const p0 = state.currentPath[i-1];
+        const p1 = state.currentPath[i];
+        const midX = (p0.x + p1.x) / 2;
+        const midY = (p0.y + p1.y) / 2;
+        ctx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+    }
+    ctx.lineTo(state.currentPath[state.currentPath.length-1].x, state.currentPath[state.currentPath.length-1].y);
+    
+    ctx.lineWidth = CFG.sliceWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+
+    // 2. Analyze pixels to find separated islands
+    analyzeCanvas();
+}
+
+function analyzeCanvas() {
+    const w = canvas.width;
+    const h = canvas.height;
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+    
+    // Create a visitation map
+    const visited = new Uint8Array(w * h); // 0: unvisited, 1: visited
+    const islands = []; // Stores pixel count for each island
+
+    // Optimized scanning: We don't need to scan every single pixel as start point.
+    // We scan a grid. If we hit a colored pixel that isn't visited, we Flood Fill.
+    const scanStep = 4; 
+
+    for (let y = 0; y < h; y += scanStep) {
+        for (let x = 0; x < w; x += scanStep) {
+            const idx = (y * w + x) * 4;
+            const visitedIdx = y * w + x;
+
+            // Alpha check: if pixel is visible and not visited
+            if (data[idx + 3] > 50 && visited[visitedIdx] === 0) {
+                // Found a new island!
+                const result = floodFill(x, y, w, h, data, visited);
+                if (result.area > 100) { // Ignore tiny dust
+                    islands.push(result);
+                }
+            }
+        }
+    }
+
+    handleAnalysisResult(islands);
+}
+
+// Iterative Flood Fill (Stack-based) to prevent recursion depth limit
+function floodFill(startX, startY, w, h, data, visited) {
+    const stack = [startX, startY];
+    let area = 0;
+    let minX = w, maxX = 0, minY = h, maxY = 0;
+    
+    // Canvas coordinates for clipping later
+    // We just need area for gameplay, but bounding box helps with animation
+    
+    while (stack.length > 0) {
+        const y = stack.pop();
+        const x = stack.pop();
+        
+        const idx = y * w + x;
+        
+        if (visited[idx] === 1) continue;
+        visited[idx] = 1;
+        area++;
+        
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+
+        // Check 4 neighbors
+        // Right
+        if (x + 1 < w) {
+            if (visited[idx + 1] === 0 && data[(idx + 1) * 4 + 3] > 50) {
+                stack.push(x + 1, y);
+            }
+        }
+        // Left
+        if (x - 1 >= 0) {
+            if (visited[idx - 1] === 0 && data[(idx - 1) * 4 + 3] > 50) {
+                stack.push(x - 1, y);
+            }
+        }
+        // Down
+        if (y + 1 < h) {
+            if (visited[idx + w] === 0 && data[(idx + w) * 4 + 3] > 50) {
+                stack.push(x, y + 1);
+            }
+        }
+        // Up
+        if (y - 1 >= 0) {
+            if (visited[idx - w] === 0 && data[(idx - w) * 4 + 3] > 50) {
+                stack.push(x, y - 1);
+            }
+        }
+    }
+
+    return { area, bounds: { x: minX, y: minY, w: maxX - minX, h: maxY - minY } };
+}
+
+// --- 5. Game Logic: Scoring & Feedback ---
+
+function handleAnalysisResult(islands) {
+    if (islands.length < 2) {
+        // Cut failed (didn't split)
+        // Just redraw the line or fade it out
+        state.currentPath = [];
+        renderGame(); // Re-render shape with the "cut" (it's just a hole now)
+        // Note: In a stricter game we might penalize, but here we let them keep cutting
+        return;
+    }
+
+    // Sort by area size descending
+    islands.sort((a, b) => b.area - a.area);
+    
+    // Take the two biggest chunks
+    const area1 = islands[0].area;
+    const area2 = islands[1].area;
+    const total = area1 + area2;
+    
+    const ratio1 = (area1 / total) * 100;
+    const ratio2 = (area2 / total) * 100;
+    
+    const diff = Math.abs(50 - ratio1);
+    
+    processScore(diff, ratio1, ratio2);
+    
+    // Animation: Create temp canvases for the parts and fly them away
+    createExplosionEffect(islands);
+    
+    // Clear main canvas immediately to show the animated parts
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Delay next level
+    setTimeout(() => {
+        if (state.phase === 'playing') spawnNewShape();
+    }, 800);
+}
+
+function processScore(diff, r1, r2) {
+    let points = 0;
+    let label = "";
+    let colorClass = "";
+    let timeBonus = 0;
+
+    if (diff <= CFG.perfectThreshold) {
+        label = "PERFECT HALF";
+        colorClass = "text-pink-500";
+        points = 1000;
+        state.combo++;
+        state.perfectCount++;
+        timeBonus = 3;
+    } else if (diff <= CFG.greatThreshold) {
+        label = "GREAT";
+        colorClass = "text-green-400";
+        points = 500;
+        state.combo++;
+        timeBonus = 1;
+    } else if (diff <= CFG.goodThreshold) {
+        label = "GOOD";
+        colorClass = "text-blue-400";
+        points = 100;
+        state.combo = 0; // Break combo
+    } else {
+        label = "BAD";
+        colorClass = "text-slate-500";
+        points = 10;
+        state.combo = 0;
+    }
+
+    if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+
+    // Apply Combo Multiplier
+    const multiplier = Math.min(state.combo, 5) + (state.combo > 5 ? (state.combo-5)*0.5 : 0);
+    points = Math.floor(points * (1 + multiplier * 0.1));
+    
+    state.score += points;
+    state.timeLeft = Math.min(state.timeLeft + timeBonus, 60);
+
+    updateUI();
+    showFloatingText(label, `${r1.toFixed(1)}% / ${r2.toFixed(1)}%`, colorClass);
+}
+
+function createExplosionEffect(islands) {
+    // Simply capture the screen state? No, we need to separate them.
+    // We already have bounds. We can copy pixels from the main canvas to temp canvases.
+    // But to save performance, we'll just take a snapshot of the whole canvas,
+    // and create two "clones" that mask out the other side.
+    // Actually, simpler: Just spawn particles.
+    // FOR "GENIUS" FEEL: We want the pieces to drift apart.
+    
+    // Strategy:
+    // 1. We cut the canvas.
+    // 2. We assume the cut generally splits left/right or top/bottom.
+    // 3. We calculate the center of mass of the two islands (approx via bounds center).
+    // 4. We push them away from the center of the cut.
+    
+    // Since we can't easily "cut" the image data into two distinct clean sprites without complex masking,
+    // We will cheat slightly for visual flair:
+    // We will animate the *Cut Line* expanding rapidly to clear the screen, 
+    // while spawning debris.
+    
+    // REVISION for "Separation" effect:
+    // We can use `clip()` with the user's path to draw half the screen? Difficult with complex paths.
+    // Let's stick to a simpler feedback: Flash the ratio, particles explode, shape shrinks and vanishes.
+    
+    // Wait, let's try to do the drift.
+    // We have the cut path. We can create a vector perpendicular to the cut path's average direction.
+    
+    const pStart = state.currentPath[0];
+    const pEnd = state.currentPath[state.currentPath.length - 1];
+    const dx = pEnd.x - pStart.x;
+    const dy = pEnd.y - pStart.y;
+    const angle = Math.atan2(dy, dx);
+    
+    // Velocity vectors for two halves (perpendicular to cut)
+    const v1 = { x: Math.cos(angle - Math.PI/2) * 10, y: Math.sin(angle - Math.PI/2) * 10 };
+    const v2 = { x: Math.cos(angle + Math.PI/2) * 10, y: Math.sin(angle + Math.PI/2) * 10 };
+    
+    state.parts = [
+        { img: null, x: 0, y: 0, vx: v1.x, vy: v1.y, rot: -0.1 },
+        { img: null, x: 0, y: 0, vx: v2.x, vy: v2.y, rot: 0.1 }
+    ];
+    
+    // Since we can't easily split the raster image into two objects without re-running floodfill to generate masks (expensive),
+    // We will just fade out the current canvas with an expansion effect and show text.
+    // The "Physics" feel will come from the text and UI shake.
+    document.body.classList.add('shake');
+    setTimeout(() => document.body.classList.remove('shake'), 200);
+}
+
+// --- 6. Rendering & UI Updates ---
+
+function renderGame() {
+    // The shape is already on the canvas (preserved).
+    // We only need to draw the "Cutting Line" on top if dragging.
+    // But wait, we are drawing directly to canvas in 'performCut'.
+    // So here, we just need to restore the shape if we are in the middle of drawing a line *preview*.
+    
+    // To do this efficiently:
+    // In 'spawnNewShape', we should have saved the canvas state? 
+    // No, let's just redraw the organic shape + the current line.
+    
+    // Actually, simpler:
+    // The shape is static until cut.
+    // We draw the line on top.
+    // But to "undo" the line (clear it for next frame of drawing), we need to redraw the background.
+    // Thus: Clear -> Draw Shape -> Draw Line.
+    
+    // But 'Shape' is complex (random vertices). We need to store the vertices.
+    // Let's store vertices in `state.currentVertices`.
+    
+    // Optimization: 
+    // We didn't store vertices in spawnNewShape. Let's fix that.
+    // Actually, let's just use an offscreen canvas for the shape.
+}
+
+// Fix spawnNewShape to support redraw
+let shapeCanvas = document.createElement('canvas');
+let shapeCtx = shapeCanvas.getContext('2d');
+
+function updateShapeCanvas(vertices, color) {
+    shapeCanvas.width = canvas.width;
+    shapeCanvas.height = canvas.height;
+    drawOrganicShape(shapeCtx, vertices, color);
+}
+
+// Override spawn
+const originalSpawn = spawnNewShape;
+spawnNewShape = function() {
+    state.parts = [];
+    state.currentPath = [];
+    state.currentShapeColor = CFG.colors[Math.floor(Math.random() * CFG.colors.length)];
+    
+    const vertices = generateOrganicShape(canvas.width, canvas.height);
+    state.currentVertices = vertices;
+    
+    updateShapeCanvas(vertices, state.currentShapeColor);
+    
+    // Draw to main
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(shapeCanvas, 0, 0);
+}
+
+// Main Draw Loop
+function loop(timestamp) {
+    const dt = (timestamp - state.lastTime) / 1000;
+    state.lastTime = timestamp;
+
+    if (state.phase === 'playing') {
+        // Timer Logic
+        state.timeLeft -= dt;
+        if (state.timeLeft <= 0) {
+            gameOver();
+        }
+
+        // Draw logic
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 1. Draw Shape (Base)
+        if (state.parts.length === 0) {
+             ctx.drawImage(shapeCanvas, 0, 0);
+        }
+
+        // 2. Draw User Line (Preview)
+        if (state.isDrawing && state.currentPath.length > 0) {
+            ctx.beginPath();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.setLineDash([10, 15]);
+            
+            ctx.moveTo(state.currentPath[0].x, state.currentPath[0].y);
+            for (let i = 1; i < state.currentPath.length; i++) {
+                const p0 = state.currentPath[i-1];
+                const p1 = state.currentPath[i];
+                const midX = (p0.x + p1.x) / 2;
+                const midY = (p0.y + p1.y) / 2;
+                ctx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        
+        // 3. Animation of separated parts (Simulated)
+        // Since we aren't actually splitting bitmaps (too heavy), 
+        // we animate the "Shape Canvas" fading out/expanding
+        if (state.parts.length > 0) {
+            // Simple effect: Scale up and fade out the old shape
+            ctx.globalAlpha = Math.max(0, 1.0 - (dt * 5)); // Quick fade
+            // Draw separated effect roughly by drawing shape twice moving apart
+            
+            // Left Part
+            ctx.save();
+            ctx.translate(state.parts[0].vx, state.parts[0].vy);
+            ctx.drawImage(shapeCanvas, 0, 0);
+            ctx.restore();
+
+            // Right Part
+            ctx.save();
+            ctx.translate(state.parts[1].vx, state.parts[1].vy);
+            ctx.drawImage(shapeCanvas, 0, 0);
+            ctx.restore();
+
+            ctx.globalAlpha = 1.0;
+            
+            // Increase velocity for next frame
+            state.parts[0].vx *= 1.1;
+            state.parts[0].vy *= 1.1;
+            state.parts[1].vx *= 1.1;
+            state.parts[1].vy *= 1.1;
+        }
+
+        updateUIElements();
+    }
+
+    requestAnimationFrame(loop);
+}
+
+function showFloatingText(text, subtext, colorClass) {
+    const container = document.getElementById('feedbackContainer');
+    const el = document.createElement('div');
+    el.className = `flex flex-col items-center animate-[pop_0.5s_ease-out_forwards] mb-4`;
+    el.innerHTML = `
+        <span class="text-4xl font-black italic ${colorClass} drop-shadow-lg stroke-black" style="-webkit-text-stroke: 1px black;">${text}</span>
+        <span class="text-xl font-bold text-white drop-shadow-md">${subtext}</span>
+    `;
+    container.appendChild(el);
+    
+    // Remove after animation
+    setTimeout(() => el.remove(), 1000);
+}
+
+function updateUIElements() {
+    // Timer Bar
+    const pct = Math.max(0, (state.timeLeft / 60) * 100);
+    const bar = document.getElementById('timerBar');
+    bar.style.width = `${pct}%`;
+    
+    if (pct < 20) bar.className = "h-full w-full transition-all duration-100 ease-linear bg-red-500 animate-pulse";
+    else if (pct < 50) bar.className = "h-full w-full transition-all duration-100 ease-linear bg-yellow-400";
+    else bar.className = "h-full w-full transition-all duration-100 ease-linear bg-gradient-to-r from-green-400 to-emerald-500";
+}
+
+function updateUI() {
+    document.getElementById('scoreDisplay').innerText = state.score;
+    const comboEl = document.getElementById('comboDisplay');
+    if (state.combo > 1) {
+        comboEl.innerText = `COMBO x${state.combo}`;
+        comboEl.style.opacity = '1';
+    } else {
+        comboEl.style.opacity = '0';
+    }
+}
+
+function gameOver() {
+    state.phase = 'result';
+    document.getElementById('finalScore').innerText = state.score;
+    document.getElementById('finalPerfects').innerText = state.perfectCount;
+    document.getElementById('finalCombo').innerText = state.maxCombo;
+    
+    const screen = document.getElementById('resultScreen');
+    screen.style.opacity = '1';
+    screen.style.pointerEvents = 'auto';
+}
+
+// Event Listeners for UI
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('restartBtn').addEventListener('click', startGame);
+
+// Init
+init();
+
+</script>
+</body>
+</html>
