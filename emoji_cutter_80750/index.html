@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Emoji Cutter</title>
+    <title>Emoji Cutter - Infinite Cut</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap');
@@ -112,7 +112,7 @@
 <script>
 /**
  * Emoji Cutter - Infinite Cut
- * v2.1: Unique Emoji Logic
+ * v3.0: True Infinite Emoji Engine (Dynamic Unicode Generation)
  */
 
 const canvas = document.getElementById('gameCanvas');
@@ -126,18 +126,14 @@ const CFG = {
     perfectThreshold: 2.0,
     greatThreshold: 5.0,
     goodThreshold: 10.0,
-    // The library of randomness
-    emojis: [
-        // Food
-        '🍅', '🍕', '🍔', '🍩', '🍪', '🥑', '🍉', '🥐', '🍦', '🍓', '🍒', '🧀', '🍙', '🍣', '🍺', '🍿',
-        // Objects
-        '🎸', '🧸', '💎', '🎁', '🎈', '🎨', '🚲', '🚀', '🚁', '⏰', '💡', '📱', '📷', '🔭', '🔬',
-        // Nature/Animals
-        '🌵', '🌺', '🍄', '🦋', '🐙', '🦖', '🐢', '🦄', '🐲', '🪐', '🔥', '❄️', '🦁', '🦊',
-        // Places/Buildings
-        '🏰', '🗼', '🗽', '🎪', '🕋', '⛩️', '⛲', '⛺', '🏫', '🏦',
-        // Symbols
-        '❤️', '⭐', '⚡', '🔥', '👑', '💀', '💣', '🧿', '🧩'
+    // Unicode Ranges for Emojis (Start, End)
+    emojiRanges: [
+        [0x1F300, 0x1F5FF], // Misc Symbols and Pictographs (Weather, Food, Music, etc)
+        [0x1F600, 0x1F64F], // Emoticons (Faces)
+        [0x1F680, 0x1F6FF], // Transport and Map
+        [0x1F900, 0x1F9FF], // Supplemental Symbols (Food, Animals, Objects)
+        [0x1FA70, 0x1FAFF], // Symbols and Pictographs Extended-A
+        [0x2600, 0x27BF]    // Misc Symbols (Sun, Snowman, Soccer ball, etc)
     ]
 };
 
@@ -153,7 +149,7 @@ let state = {
     parts: [], 
     lastTime: 0,
     currentEmoji: '',
-    usedEmojis: [] // Track used emojis per session
+    usedEmojis: new Set() // Use Set for faster lookup
 };
 
 // --- 1. Robust Shape Generation (Emoji Engine) ---
@@ -166,7 +162,6 @@ function init() {
 
 function resize() {
     const rect = canvas.parentElement.getBoundingClientRect();
-    // Ensure we don't get 0 dimensions
     const w = Math.max(rect.width, 300);
     const h = Math.max(rect.height, 300);
     
@@ -178,64 +173,87 @@ function resize() {
     if (state.phase === 'menu') {
         spawnNewShape(true);
     } else if (state.phase === 'playing' && state.parts.length === 0) {
-        // Redraw current shape if resized during play
-        spawnNewShape(); // Simply respawn to fit new size
+        spawnNewShape();
     }
 }
 
+function generateRandomEmoji() {
+    const range = CFG.emojiRanges[Math.floor(Math.random() * CFG.emojiRanges.length)];
+    const codePoint = Math.floor(Math.random() * (range[1] - range[0] + 1)) + range[0];
+    return String.fromCodePoint(codePoint);
+}
+
 function drawCenteredEmoji(context, emoji, width, height) {
-    // Reset Composite Operation to ensure drawing works
     context.globalCompositeOperation = 'source-over';
-    
-    // Determine font size based on canvas
     const size = Math.min(width, height) * 0.55;
-    
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-    
-    // Add a glow/shadow for better visibility on dark bg
     context.shadowColor = 'rgba(255, 255, 255, 0.3)';
     context.shadowBlur = 20;
     context.fillText(emoji, width / 2, height / 2);
-    context.shadowBlur = 0; // Reset
+    context.shadowBlur = 0;
+}
+
+// Verify if the emoji was actually drawn (not a tofu/blank)
+function checkEmojiValidity(context, width, height) {
+    const sampleStep = 20;
+    const imgData = context.getImageData(0, 0, width, height).data;
+    let pixelCount = 0;
+    
+    for (let i = 3; i < imgData.length; i += 4 * sampleStep) {
+        if (imgData[i] > 50) {
+            pixelCount++;
+        }
+    }
+    // If extremely few pixels are drawn, it's likely unsupported or blank
+    return pixelCount > 20;
 }
 
 function spawnNewShape(isBg = false) {
-    // CRITICAL FIX: Reset state flags
     state.parts = [];
     state.currentPath = [];
     state.isDrawing = false;
     
-    // Clear the internal shape canvas completely
     shapeCtx.globalCompositeOperation = 'source-over';
     shapeCtx.clearRect(0, 0, shapeCanvas.width, shapeCanvas.height);
     
     if (isBg) {
-        // Draw a random background decoration
         drawCenteredEmoji(ctx, '⚔️', canvas.width, canvas.height);
         return;
     }
 
-    // Logic to prevent duplicates
-    // Filter out emojis that are already in state.usedEmojis
-    let availableEmojis = CFG.emojis.filter(e => !state.usedEmojis.includes(e));
-    
-    // If we've used all emojis, reset the pool
-    if (availableEmojis.length === 0) {
-        state.usedEmojis = [];
-        availableEmojis = CFG.emojis;
+    let emoji = '';
+    let isValid = false;
+    let attempts = 0;
+    const maxAttempts = 20; // Prevent infinite loop
+
+    while (!isValid && attempts < maxAttempts) {
+        attempts++;
+        emoji = generateRandomEmoji();
+
+        // 1. Deduplication Check
+        if (state.usedEmojis.has(emoji)) {
+            continue;
+        }
+
+        // 2. Render Check
+        shapeCtx.clearRect(0, 0, shapeCanvas.width, shapeCanvas.height);
+        drawCenteredEmoji(shapeCtx, emoji, shapeCanvas.width, shapeCanvas.height);
+        
+        // 3. Visibility Check (Prevent tofu/blank)
+        if (checkEmojiValidity(shapeCtx, shapeCanvas.width, shapeCanvas.height)) {
+            isValid = true;
+            state.usedEmojis.add(emoji);
+            state.currentEmoji = emoji;
+        }
     }
 
-    // Select random emoji from available pool
-    const emoji = availableEmojis[Math.floor(Math.random() * availableEmojis.length)];
-    
-    // Record usage
-    state.currentEmoji = emoji;
-    state.usedEmojis.push(emoji);
-
-    // Draw to the offscreen canvas
-    drawCenteredEmoji(shapeCtx, emoji, shapeCanvas.width, shapeCanvas.height);
+    // If we failed to find a valid emoji after many tries (rare), fallback to safe one
+    if (!isValid) {
+        emoji = '⭐';
+        drawCenteredEmoji(shapeCtx, emoji, shapeCanvas.width, shapeCanvas.height);
+    }
 
     // Initial draw to main canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -260,7 +278,7 @@ window.addEventListener('touchend', endDraw);
 
 function startDraw(e) {
     if (state.phase !== 'playing') return;
-    if (state.parts.length > 0) return; // Wait for animation to finish
+    if (state.parts.length > 0) return;
     e.preventDefault();
     state.isDrawing = true;
     state.currentPath = [getPos(e)];
@@ -268,18 +286,14 @@ function startDraw(e) {
 
 function drawMove(e) {
     if (!state.isDrawing) return;
-    // e.preventDefault(); // Removed to allow some browser gestures if needed, but usually preventDefault in touchstart handles it
     const pos = getPos(e);
     state.currentPath.push(pos);
-    
-    // Visual feedback is handled in loop()
 }
 
 function endDraw(e) {
     if (!state.isDrawing) return;
     state.isDrawing = false;
     
-    // Simplify path check
     if (state.currentPath.length > 5) {
         performCut();
     } else {
@@ -290,12 +304,10 @@ function endDraw(e) {
 // --- 3. Physics & Cutting Logic ---
 
 function performCut() {
-    // 1. Cut the Shape Canvas (Erase the line)
     shapeCtx.globalCompositeOperation = 'destination-out';
     shapeCtx.beginPath();
     shapeCtx.moveTo(state.currentPath[0].x, state.currentPath[0].y);
     
-    // Curve fitting for smoother cut
     for (let i = 1; i < state.currentPath.length; i++) {
         const p0 = state.currentPath[i-1];
         const p1 = state.currentPath[i];
@@ -310,30 +322,25 @@ function performCut() {
     shapeCtx.lineCap = 'round';
     shapeCtx.lineJoin = 'round';
     shapeCtx.stroke();
-    shapeCtx.globalCompositeOperation = 'source-over'; // Restore immediately
+    shapeCtx.globalCompositeOperation = 'source-over';
 
-    // 2. Analyze Result
     analyzeAndSeparate();
 }
 
 function analyzeAndSeparate() {
     const w = shapeCanvas.width;
     const h = shapeCanvas.height;
-    
-    // Performance: Downsample scanning if high DPI
     const imgData = shapeCtx.getImageData(0, 0, w, h);
     const data = imgData.data;
     const visited = new Uint8Array(w * h);
     const islands = [];
-    const scanStep = 8; // Coarse scan to find islands quickly
+    const scanStep = 8;
 
     for (let y = 0; y < h; y += scanStep) {
         for (let x = 0; x < w; x += scanStep) {
             const idx = y * w + x;
-            // Alpha check (>50) and not visited
             if (data[idx * 4 + 3] > 50 && visited[idx] === 0) {
                 const part = extractPart(x, y, w, h, data, visited);
-                // Only count significant parts
                 if (part.pixelCount > 200) { 
                     islands.push(part);
                 }
@@ -344,15 +351,11 @@ function analyzeAndSeparate() {
     if (islands.length >= 2) {
         handleSuccess(islands);
     } else {
-        // Failed cut (did not split)
-        // Fade out the cut line on main canvas or just ignore
-        // We reset path so user can try again immediately
         state.currentPath = [];
     }
 }
 
 function extractPart(startX, startY, w, h, sourceData, visited) {
-    // Iterative flood fill
     const stack = [startX, startY];
     let pixelCount = 0;
     let minX = w, maxX = 0, minY = h, maxY = 0;
@@ -373,16 +376,12 @@ function extractPart(startX, startY, w, h, sourceData, visited) {
         if (y < minY) minY = y;
         if (y > maxY) maxY = y;
 
-        // Check neighbors (step=1 for fill)
-        // Optimization: Check alpha first without bounds check if safe
-        // But always need bounds check for edges
         if (x+1 < w && visited[idx+1]===0 && sourceData[(idx+1)*4+3]>50) stack.push(x+1, y);
         if (x-1 >=0 && visited[idx-1]===0 && sourceData[(idx-1)*4+3]>50) stack.push(x-1, y);
         if (y+1 < h && visited[idx+w]===0 && sourceData[(idx+w)*4+3]>50) stack.push(x, y+1);
         if (y-1 >=0 && visited[idx-w]===0 && sourceData[(idx-w)*4+3]>50) stack.push(x, y-1);
     }
 
-    // Create isolated canvas for this part
     const partW = maxX - minX + 1;
     const partH = maxY - minY + 1;
     const pad = 2;
@@ -395,7 +394,6 @@ function extractPart(startX, startY, w, h, sourceData, visited) {
     const partCtx = partCanvas.getContext('2d');
     const partImgData = partCtx.createImageData(safeW, safeH);
     
-    // Copy pixels
     for (let i = 0; i < pixelIndices.length; i++) {
         const idx = pixelIndices[i];
         const gx = idx % w;
@@ -425,7 +423,6 @@ function extractPart(startX, startY, w, h, sourceData, visited) {
 }
 
 function handleSuccess(islands) {
-    // Sort descending
     islands.sort((a, b) => b.pixelCount - a.pixelCount);
     
     const partA = islands[0];
@@ -436,20 +433,16 @@ function handleSuccess(islands) {
     const ratioB = (partB.pixelCount / totalPixels) * 100;
     const diff = Math.abs(50 - ratioA);
 
-    // Physics Setup
     const pStart = state.currentPath[0];
     const pEnd = state.currentPath[state.currentPath.length-1];
     
-    // Calc angle of cut
     const cutAngle = Math.atan2(pEnd.y - pStart.y, pEnd.x - pStart.x);
     const perpAngle = cutAngle + Math.PI/2;
     
-    // Identify which side Part A is on relative to line
-    // Cross product z-component
     const cp = (pEnd.x - pStart.x)*(partA.cy - pStart.y) - (pEnd.y - pStart.y)*(partA.cx - pStart.x);
     const dir = cp > 0 ? 1 : -1;
     
-    const speed = 8; // Speed of separation
+    const speed = 8;
     
     partA.vx = Math.cos(perpAngle) * speed * dir;
     partA.vy = Math.sin(perpAngle) * speed * dir;
@@ -460,9 +453,8 @@ function handleSuccess(islands) {
     partB.vr = (Math.random()-0.5) * 0.15;
 
     state.parts = [partA, partB];
-    state.currentPath = []; // Clear line
+    state.currentPath = [];
 
-    // Score
     processScore(diff, ratioA, ratioB);
 }
 
@@ -478,7 +470,7 @@ function processScore(diff, r1, r2) {
         points = 1000;
         state.combo++;
         state.perfectCount++;
-        timeBonus = 2; // Reduced slightly for balance
+        timeBonus = 2;
         spawnConfetti(canvas.width/2, canvas.height/2);
     } else if (diff <= CFG.greatThreshold) {
         label = "GREAT";
@@ -500,7 +492,6 @@ function processScore(diff, r1, r2) {
 
     if (state.combo > state.maxCombo) state.maxCombo = state.combo;
     
-    // Combo Multiplier
     const multiplier = 1 + (Math.min(state.combo, 10) * 0.1);
     points = Math.floor(points * multiplier);
     
@@ -510,17 +501,15 @@ function processScore(diff, r1, r2) {
     updateUI();
     showFloatingText(label, `${r1.toFixed(1)}% / ${r2.toFixed(1)}%`, colorClass);
     
-    // Screen shake
     document.body.classList.remove('shake');
-    void document.body.offsetWidth; // Trigger reflow
+    void document.body.offsetWidth;
     document.body.classList.add('shake');
 
-    // NEXT LEVEL TRIGGER
     setTimeout(() => {
         if (state.phase === 'playing') {
             spawnNewShape();
         }
-    }, 800); // Faster transition
+    }, 800);
 }
 
 // --- 4. Game Loop ---
@@ -535,7 +524,6 @@ function loop(timestamp) {
             state.timeLeft = 0;
             gameOver();
         }
-
         updateUIElements();
     }
 
@@ -544,11 +532,9 @@ function loop(timestamp) {
 }
 
 function render() {
-    // Clear main canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (state.phase === 'playing') {
-        // 1. Draw Parts (if split)
         if (state.parts.length > 0) {
             for (let part of state.parts) {
                 part.x += part.vx;
@@ -564,13 +550,10 @@ function render() {
                 ctx.drawImage(part.canvas, -part.canvas.width/2, -part.canvas.height/2);
                 ctx.restore();
             }
-        } 
-        // 2. Draw Base Shape (if NOT split)
-        else {
+        } else {
             ctx.drawImage(shapeCanvas, 0, 0);
         }
 
-        // 3. Draw Cutting Line
         if (state.isDrawing && state.currentPath.length > 0) {
             ctx.beginPath();
             ctx.strokeStyle = 'white';
@@ -592,7 +575,6 @@ function render() {
             ctx.shadowBlur = 0;
         }
 
-        // 4. Particles
         updateParticles();
     }
 }
@@ -618,7 +600,7 @@ function updateParticles() {
         p.x += p.vx;
         p.y += p.vy;
         p.life -= 0.03;
-        p.vy += 1.0; // heavy gravity
+        p.vy += 1.0;
         
         ctx.globalAlpha = p.life;
         ctx.fillStyle = p.color;
@@ -640,7 +622,6 @@ function showFloatingText(text, subtext, colorClass) {
         <span class="text-2xl font-bold text-white drop-shadow-md bg-black/50 px-6 py-2 rounded-full mt-2 border border-white/20 backdrop-blur-md">${subtext}</span>
     `;
     container.appendChild(el);
-    // Remove old elements
     while(container.children.length > 3) {
         container.removeChild(container.firstChild);
     }
@@ -682,7 +663,7 @@ function startGame() {
         isDrawing: false,
         parts: [],
         lastTime: performance.now(),
-        usedEmojis: [], // Reset usage list on restart
+        usedEmojis: new Set(),
         currentEmoji: ''
     };
     particles = [];
@@ -712,7 +693,6 @@ function gameOver() {
 document.getElementById('startBtn').addEventListener('click', startGame);
 document.getElementById('restartBtn').addEventListener('click', startGame);
 
-// Start
 init();
 
 </script>
