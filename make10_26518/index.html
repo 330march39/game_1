@@ -53,7 +53,7 @@
     <canvas id="gameCanvas"></canvas>
 
     <!-- HUD (Heads Up Display) -->
-    <div class="absolute top-0 left-0 w-full p-4 flex justify-between items-start pointer-events-none z-10">
+    <div id="hud" class="absolute top-0 left-0 w-full p-4 flex justify-between items-start pointer-events-none z-10">
         <div class="flex flex-col gap-1">
             <div class="text-xs text-gray-400 tracking-widest uppercase">SCORE</div>
             <div id="scoreDisplay" class="text-2xl font-bold text-white tabular-nums">0</div>
@@ -113,7 +113,7 @@
         // --- Configuration ---
         const COLS = 6;
         const ROWS = 10;
-        const CELL_SIZE_RATIO = 0.85; // Percentage of width to fill
+        // Removed CELL_SIZE_RATIO as we now calculate dynamically
         const COLORS = {
             bg: '#050505',
             grid: '#1a1a1a',
@@ -221,15 +221,29 @@
                 this.canvas.width = window.innerWidth;
                 this.canvas.height = window.innerHeight;
                 
-                // Calculate grid dimensions to fit screen nicely
-                this.cellWidth = Math.min(this.canvas.width / COLS, 80);
-                this.cellHeight = this.cellWidth; // Square cells
+                // --- FIX: Responsiveness Logic ---
+                // 1. Calculate available height minus header (approx 100px) and bottom margin
+                const availableHeight = this.canvas.height - 120; 
+                const availableWidth = this.canvas.width - 20; // Small margin
                 
-                this.gridOffsetX = (this.canvas.width - (this.cellWidth * COLS)) / 2;
-                this.gridOffsetY = (this.canvas.height - (this.cellHeight * ROWS)) / 2;
+                // 2. Determine max cell size based on both constraints
+                const maxCellH = availableHeight / ROWS;
+                const maxCellW = availableWidth / COLS;
+                
+                // 3. Choose the smaller dimension to ensure it fits
+                // Also cap at 70px for large screens so it doesn't look comical
+                this.cellWidth = Math.min(maxCellW, maxCellH, 70);
+                this.cellHeight = this.cellWidth; // Keep square
 
-                // Ensure grid is not cut off at bottom on mobile
-                if (this.gridOffsetY < 50) this.gridOffsetY = 60; 
+                // 4. Center the grid exactly
+                const gridPixelWidth = this.cellWidth * COLS;
+                const gridPixelHeight = this.cellHeight * ROWS;
+                
+                this.gridOffsetX = (this.canvas.width - gridPixelWidth) / 2;
+                
+                // Push grid down to avoid header (min 80px), but center vertically if lots of space
+                const idealY = (this.canvas.height - gridPixelHeight) / 2;
+                this.gridOffsetY = Math.max(idealY, 80); 
             }
 
             reset() {
@@ -339,7 +353,8 @@
                     
                     // Additional safeguard: if it somehow passed target but targetRow is valid
                     if (p.y > floorLimit && p.targetRow === ROWS - 1) {
-                        hit = true;
+                        hit = true; // 強制着地
+                        p.y = p.targetY; // 位置補正
                     }
 
                     if (hit) {
