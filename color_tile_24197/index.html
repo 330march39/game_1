@@ -6,11 +6,11 @@
     <title>Color Hunter - 色彩タイル</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Noto+Sans+JP:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap');
 
         body {
             font-family: 'Inter', 'Noto Sans JP', sans-serif;
-            background-color: #f5f5f7; /* Apple-like light gray */
+            background-color: #f5f5f7;
             touch-action: manipulation;
             user-select: none;
             -webkit-user-select: none;
@@ -38,10 +38,25 @@
         .shake {
             animation: shake 0.3s ease-in-out;
         }
+        
+        /* Pop Animation for New Record */
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); color: #e11d48; }
+            100% { transform: scale(1); }
+        }
+        .pop-anim {
+            animation: pop 0.3s ease-in-out;
+        }
 
-        /* Timer Bar Animation */
-        .timer-bar-bg {
-            transition: width 1s linear;
+        /* Background Tile Pulse */
+        @keyframes pulse-color {
+            0% { opacity: 0.4; transform: scale(0.95); }
+            50% { opacity: 0.8; transform: scale(1); }
+            100% { opacity: 0.4; transform: scale(0.95); }
+        }
+        .bg-tile {
+            animation: pulse-color 4s infinite ease-in-out;
         }
 
         /* Modern Scrollbar hide */
@@ -50,65 +65,96 @@
         }
     </style>
 </head>
-<body class="h-screen w-screen overflow-hidden flex flex-col items-center justify-center text-slate-800">
+<body class="h-screen w-screen overflow-hidden flex flex-col items-center justify-center text-slate-800 bg-slate-50">
 
     <!-- Main App Container -->
     <div id="app" class="relative w-full max-w-md h-full max-h-[900px] flex flex-col p-6">
         
         <!-- Header / HUD -->
-        <header class="flex justify-between items-end mb-4 h-16 opacity-0 transition-opacity duration-500" id="hud">
+        <header class="flex justify-between items-end mb-4 h-16 opacity-0 transition-opacity duration-500 z-10" id="hud">
             <div class="flex flex-col">
-                <span class="text-xs text-slate-400 font-bold tracking-widest uppercase">Time</span>
-                <span id="timerDisplay" class="text-3xl font-bold tabular-nums leading-none">60.00</span>
+                <span class="text-[10px] text-slate-400 font-bold tracking-widest uppercase">Time</span>
+                <span id="timerDisplay" class="text-3xl font-bold tabular-nums leading-none text-slate-700">60.00</span>
             </div>
+            
+            <!-- Best Score Display in HUD -->
+            <div class="flex flex-col items-center absolute left-1/2 transform -translate-x-1/2 bottom-0">
+                <span class="text-[10px] text-slate-300 font-bold tracking-widest uppercase">Best</span>
+                <span id="hudBestScore" class="text-xl font-bold text-slate-400 tabular-nums leading-none">0</span>
+            </div>
+
             <div class="flex flex-col items-end">
-                <span class="text-xs text-slate-400 font-bold tracking-widest uppercase">Score</span>
+                <span class="text-[10px] text-slate-400 font-bold tracking-widest uppercase">Score</span>
                 <span id="scoreDisplay" class="text-3xl font-bold tabular-nums leading-none text-indigo-600">0</span>
             </div>
         </header>
 
         <!-- Timer Bar -->
-        <div class="w-full h-1.5 bg-slate-200 rounded-full mb-6 overflow-hidden opacity-0 transition-opacity duration-500" id="timerBarContainer">
+        <div class="w-full h-1.5 bg-slate-200 rounded-full mb-6 overflow-hidden opacity-0 transition-opacity duration-500 z-10" id="timerBarContainer">
             <div id="timerBar" class="h-full bg-indigo-500 rounded-full w-full transition-all duration-100 ease-linear"></div>
         </div>
 
         <!-- Game Board Area -->
-        <main class="flex-grow flex items-center justify-center w-full relative">
+        <main class="flex-grow flex items-center justify-center w-full relative z-10">
             
-            <!-- Start Screen -->
-            <div id="startScreen" class="absolute inset-0 flex flex-col items-center justify-center z-20 bg-[#f5f5f7]">
-                <h1 class="text-4xl md:text-5xl font-black mb-2 tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-indigo-500 to-purple-600">
-                    Color Hunter
-                </h1>
-                <p class="text-slate-500 mb-10 text-sm font-medium tracking-wide">違う色のタイルを見つけ出せ</p>
+            <!-- Start Screen with Decorative Background -->
+            <div id="startScreen" class="absolute inset-0 flex flex-col items-center justify-center z-20 overflow-hidden rounded-3xl">
                 
-                <button onclick="startGame()" class="group relative px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 active:translate-y-0 overflow-hidden">
-                    <span class="relative z-10">START GAME</span>
-                    <div class="absolute inset-0 bg-indigo-600 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></div>
-                </button>
+                <!-- Decorative Background Tiles -->
+                <div id="bgDecoration" class="absolute inset-0 grid grid-cols-4 grid-rows-4 gap-4 p-4 opacity-30 pointer-events-none">
+                    <!-- JS will fill this -->
+                </div>
 
-                <div class="mt-12 text-center">
-                    <p class="text-xs text-slate-400 uppercase tracking-wider mb-1">High Score</p>
-                    <p id="highScoreDisplay" class="text-2xl font-bold text-slate-700">0</p>
+                <!-- Glassmorphism Content Card -->
+                <div class="relative z-10 bg-white/80 backdrop-blur-md p-8 rounded-3xl shadow-2xl w-full max-w-xs flex flex-col items-center border border-white/50">
+                    <div class="mb-6 flex items-center justify-center w-16 h-16 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-2xl shadow-lg transform -rotate-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                        </svg>
+                    </div>
+
+                    <h1 class="text-4xl font-black mb-2 tracking-tight text-slate-800 text-center leading-none">
+                        Color<br><span class="text-indigo-600">Hunter</span>
+                    </h1>
+                    <p class="text-slate-500 mb-8 text-xs font-bold uppercase tracking-widest text-center">違う色を見つけろ</p>
+                    
+                    <div class="w-full flex justify-between items-end px-4 py-3 bg-slate-100 rounded-xl mb-6 border border-slate-200">
+                        <span class="text-xs font-bold text-slate-400 uppercase">Best Score</span>
+                        <span id="highScoreDisplay" class="text-2xl font-black text-slate-700 tabular-nums">0</span>
+                    </div>
+
+                    <button onclick="startGame()" class="w-full group relative px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 active:translate-y-0 overflow-hidden">
+                        <span class="relative z-10 flex items-center justify-center gap-2">
+                            PLAY NOW
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                        </span>
+                        <div class="absolute inset-0 bg-indigo-600 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></div>
+                    </button>
                 </div>
             </div>
 
             <!-- Game Grid -->
-            <div id="gameBoard" class="grid gap-3 w-full aspect-square bg-white p-3 rounded-3xl shadow-sm hidden transition-all">
+            <div id="gameBoard" class="grid gap-3 w-full aspect-square bg-white p-3 rounded-3xl shadow-xl shadow-indigo-100 hidden transition-all ring-1 ring-slate-100">
                 <!-- Tiles will be injected here -->
             </div>
 
             <!-- Result Screen -->
-            <div id="resultScreen" class="absolute inset-0 flex flex-col items-center justify-center z-30 bg-[#f5f5f7]/95 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
-                <p class="text-sm text-slate-500 font-bold uppercase tracking-widest mb-2">Time Up</p>
-                <h2 class="text-6xl font-black text-slate-800 mb-2" id="finalScore">0</h2>
+            <div id="resultScreen" class="absolute inset-0 flex flex-col items-center justify-center z-30 bg-white/90 backdrop-blur-md hidden opacity-0 transition-opacity duration-300 rounded-3xl">
+                <div id="newRecordBadge" class="hidden mb-4 bg-yellow-400 text-yellow-900 px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest shadow-lg transform rotate-[-3deg]">
+                    New Record!
+                </div>
+                
+                <p class="text-sm text-slate-400 font-bold uppercase tracking-widest mb-2">Time Up</p>
+                <h2 class="text-7xl font-black text-slate-800 mb-2 tracking-tighter" id="finalScore">0</h2>
                 <p class="text-xl font-bold text-indigo-600 mb-8" id="rankTitle">Normal</p>
                 
-                <div class="flex gap-4">
-                    <button onclick="resetGame()" class="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-300 transition-colors">
-                        ホームへ
+                <div class="grid grid-cols-2 gap-4 w-full max-w-xs">
+                    <button onclick="resetGame()" class="px-4 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-colors text-sm">
+                        ホーム
                     </button>
-                    <button onclick="startGame()" class="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-md hover:bg-indigo-700 transition-colors hover:shadow-lg">
+                    <button onclick="startGame()" class="px-4 py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-600 transition-colors hover:shadow-xl text-sm">
                         もう一度
                     </button>
                 </div>
@@ -116,8 +162,8 @@
         </main>
 
         <!-- Footer -->
-        <footer class="h-12 flex items-center justify-center text-[10px] text-slate-400 uppercase tracking-widest opacity-50">
-            Designed by AI
+        <footer class="h-12 flex items-center justify-center text-[10px] text-slate-400 uppercase tracking-widest opacity-50 relative z-10">
+            Color Hunter v1.2
         </footer>
     </div>
 
@@ -125,18 +171,19 @@
         /* --- Game Config & State --- */
         const CONFIG = {
             initialTime: 60,
-            penaltyTime: 3, // Penalty for wrong click
-            maxGridSize: 8, // Max 8x8
+            penaltyTime: 3,
+            maxGridSize: 8,
         };
 
         let state = {
             score: 0,
-            level: 1,
+            highScore: 0,
             isPlaying: false,
             timeLeft: CONFIG.initialTime,
             timerInterval: null,
-            gridSize: 2, // Starts at 2x2
-            targetColorIndex: 0
+            gridSize: 2,
+            targetColorIndex: 0,
+            isNewRecord: false
         };
 
         // DOM Elements
@@ -151,27 +198,36 @@
         const finalScoreEl = document.getElementById('finalScore');
         const rankTitleEl = document.getElementById('rankTitle');
         const highScoreDisplay = document.getElementById('highScoreDisplay');
+        const hudBestScore = document.getElementById('hudBestScore');
+        const newRecordBadge = document.getElementById('newRecordBadge');
+        const bgDecoration = document.getElementById('bgDecoration');
 
+        /* --- Initialization --- */
+        
         // Load High Score
-        const savedScore = localStorage.getItem('colorHunterHighScore');
-        if (savedScore) highScoreDisplay.textContent = savedScore;
+        state.highScore = parseInt(localStorage.getItem('colorHunterHighScore') || '0');
+        updateHighScoreDisplays();
+        
+        // Create Background Decoration
+        createBackgroundDecoration();
 
         /* --- Core Logic --- */
 
         function startGame() {
             state.score = 0;
-            state.level = 1;
-            state.gridSize = 2;
             state.timeLeft = CONFIG.initialTime;
             state.isPlaying = true;
-
+            state.isNewRecord = false;
+            
             // UI Updates
             scoreDisplay.textContent = '0';
+            scoreDisplay.classList.remove('text-yellow-500'); // Reset color
             updateTimerUI();
             
             startScreen.classList.add('hidden');
             resultScreen.classList.add('hidden');
-            resultScreen.classList.remove('opacity-100'); // Reset fade
+            resultScreen.classList.remove('opacity-100');
+            newRecordBadge.classList.add('hidden');
             
             hud.classList.remove('opacity-0');
             timerBarContainer.classList.remove('opacity-0');
@@ -190,20 +246,13 @@
             timerBarContainer.classList.add('opacity-0');
             resultScreen.classList.add('hidden');
             startScreen.classList.remove('hidden');
-
-            // Update high score display on home
-            const currentHigh = localStorage.getItem('colorHunterHighScore') || 0;
-            highScoreDisplay.textContent = currentHigh;
+            
+            // Regenerate background for freshness
+            createBackgroundDecoration(); 
         }
 
         function startTimer() {
             clearInterval(state.timerInterval);
-            const startTime = Date.now();
-            const initialDuration = state.timeLeft * 1000;
-            
-            // We use a loop that checks real elapsed time to avoid drift
-            // However, since we subtract time on penalty, we manage timeLeft directly
-            
             state.timerInterval = setInterval(() => {
                 if (!state.isPlaying) return;
 
@@ -218,14 +267,10 @@
         }
 
         function updateTimerUI() {
-            // Text
             timerDisplay.textContent = state.timeLeft.toFixed(2);
-            
-            // Bar width
             const percentage = (state.timeLeft / CONFIG.initialTime) * 100;
             timerBar.style.width = `${Math.max(0, percentage)}%`;
             
-            // Bar color changes based on urgency
             if (percentage < 20) {
                 timerBar.className = 'h-full rounded-full w-full transition-all duration-100 ease-linear bg-red-500';
             } else if (percentage < 50) {
@@ -237,34 +282,22 @@
 
         function generateLevel() {
             gameBoard.innerHTML = '';
-
-            // Determine Grid Size (Difficulty Curve)
-            // 0-2: 2x2, 3-5: 3x3, 6-9: 4x4... cap at 8x8
             state.gridSize = Math.min(CONFIG.maxGridSize, Math.floor((state.score + 4) / 3) + 1);
-            if (state.score < 3) state.gridSize = 2; // Force easy start
+            if (state.score < 3) state.gridSize = 2;
 
-            // CSS Grid Update
             gameBoard.style.gridTemplateColumns = `repeat(${state.gridSize}, 1fr)`;
 
-            // Determine Colors
             const colors = generateColors(state.score);
             const totalTiles = state.gridSize * state.gridSize;
             state.targetColorIndex = Math.floor(Math.random() * totalTiles);
 
-            // Render Tiles
             for (let i = 0; i < totalTiles; i++) {
                 const tile = document.createElement('div');
                 tile.className = 'tile w-full h-full rounded-xl shadow-sm';
-                
                 const isTarget = i === state.targetColorIndex;
-                
-                // Set color
                 tile.style.backgroundColor = isTarget ? colors.target : colors.base;
-
-                // Event Listener
                 tile.ontouchstart = (e) => { e.preventDefault(); handleInteraction(i); };
                 tile.onclick = () => handleInteraction(i);
-
                 gameBoard.appendChild(tile);
             }
         }
@@ -277,7 +310,17 @@
                 state.score++;
                 scoreDisplay.textContent = state.score;
                 
-                // Tiny delay for visual feedback (optional, keeping it snappy for now)
+                // Check for High Score update in real-time
+                if (state.score > state.highScore) {
+                    state.highScore = state.score;
+                    state.isNewRecord = true;
+                    updateHighScoreDisplays();
+                    
+                    // Visual feedback for breaking record
+                    hudBestScore.classList.add('text-yellow-500', 'pop-anim');
+                    scoreDisplay.classList.add('text-yellow-500');
+                }
+
                 generateLevel();
             } else {
                 // Wrong!
@@ -286,15 +329,12 @@
         }
 
         function penalize() {
-            // Shake Animation
             gameBoard.classList.add('shake');
             setTimeout(() => gameBoard.classList.remove('shake'), 300);
 
-            // Time Deduction
             state.timeLeft -= CONFIG.penaltyTime;
             if (state.timeLeft < 0) state.timeLeft = 0;
             
-            // Visual feedback on timer
             timerDisplay.classList.add('text-red-500');
             setTimeout(() => timerDisplay.classList.remove('text-red-500'), 300);
             
@@ -302,26 +342,15 @@
             if (state.timeLeft === 0) gameOver();
         }
 
-        /**
-         * Generates Base color and Target color based on difficulty (current score).
-         * As score goes up, the difference (delta) becomes smaller.
-         */
         function generateColors(score) {
-            // HSL Color Space is best for this
             const hue = Math.floor(Math.random() * 360);
-            const saturation = Math.floor(Math.random() * 30) + 60; // 60-90% for vibrant colors
-            const lightness = Math.floor(Math.random() * 40) + 30; // 30-70% for visibility
+            const saturation = Math.floor(Math.random() * 30) + 60;
+            const lightness = Math.floor(Math.random() * 40) + 30;
 
-            // Calculate Delta (Difference)
-            // Formula: Starts easy (delta ~20), gets very hard (delta ~2)
-            // e.g., score 0 -> delta 25, score 30 -> delta 5
             let delta = Math.max(2, 25 - Math.floor(score * 0.8)); 
-
-            // Decide whether to lighten or darken
             const isLighter = Math.random() > 0.5;
             let targetLightness = isLighter ? lightness + delta : lightness - delta;
 
-            // Clamp lightness 0-100
             if (targetLightness > 100) targetLightness = lightness - delta;
             if (targetLightness < 0) targetLightness = lightness + delta;
 
@@ -336,24 +365,42 @@
             clearInterval(state.timerInterval);
 
             // Save High Score
-            const currentHigh = localStorage.getItem('colorHunterHighScore') || 0;
-            if (state.score > currentHigh) {
+            if (state.score >= state.highScore) {
                 localStorage.setItem('colorHunterHighScore', state.score);
+                state.highScore = state.score;
             }
 
-            // Determine Rank
             const rank = getRank(state.score);
 
-            // Show Results
             finalScoreEl.textContent = state.score;
             rankTitleEl.textContent = rank.title;
             rankTitleEl.style.color = rank.color;
 
+            // New Record Badge Logic
+            if (state.isNewRecord && state.score > 0) {
+                newRecordBadge.classList.remove('hidden');
+            }
+
             resultScreen.classList.remove('hidden');
-            // Allow display:none to apply before fading in
-            setTimeout(() => {
-                resultScreen.classList.remove('opacity-0');
-            }, 10);
+            setTimeout(() => resultScreen.classList.remove('opacity-0'), 10);
+        }
+
+        function updateHighScoreDisplays() {
+            highScoreDisplay.textContent = state.highScore;
+            hudBestScore.textContent = state.highScore;
+        }
+
+        function createBackgroundDecoration() {
+            bgDecoration.innerHTML = '';
+            // 4x4 grid of random colored tiles
+            for(let i=0; i<16; i++) {
+                const div = document.createElement('div');
+                const hue = Math.floor(Math.random() * 360);
+                div.className = 'w-full h-full rounded-2xl bg-tile';
+                div.style.backgroundColor = `hsl(${hue}, 70%, 85%)`;
+                div.style.animationDelay = `${Math.random() * 2}s`; // Random delay for organic feel
+                bgDecoration.appendChild(div);
+            }
         }
 
         function getRank(score) {
@@ -365,10 +412,7 @@
             return { title: "色彩の神 (God of Color)", color: "#6366f1" };
         }
 
-        // Prevent double-tap zoom on iOS
-        document.addEventListener('dblclick', function(event) {
-            event.preventDefault();
-        }, { passive: false });
+        document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 
     </script>
 </body>
