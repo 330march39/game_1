@@ -377,7 +377,7 @@
         if (!isGameActive) return;
 
         // プレビュー位置（初期Y座標）
-        // カメラ位置 + 画面高さの15% (見切れ防止のため固定値ではなく割合で)
+        // カメラ位置 + 画面高さの15%
         const previewY = cameraY + (height * 0.15);
 
         // プレビュー用のデータオブジェクトを作成（物理ボディではない）
@@ -400,7 +400,7 @@
             friction: 0.8,    // 滑りにくい
             density: 0.002,
             label: 'eraser',
-            render: { visible: false }, // 【修正】デフォルト描画をOFF (色付きボックス消去)
+            render: { visible: false }, // デフォルト描画をOFF
             plugin: { color: color } // 描画用に色を保存
         });
 
@@ -427,7 +427,6 @@
             // sin波で左右移動
             const offsetX = Math.sin(time * CONFIG.swing.speed) * (width * CONFIG.swing.rangeRatio / 2);
             currentPreview.x = (width / 2) + offsetX;
-            // 【修正】プレビューのY位置を常に「画面上端から15%」の位置に固定
             currentPreview.y = cameraY + (height * 0.15);
         }
 
@@ -437,11 +436,15 @@
             let highestY = platformBody.position.y; // スタート地点
             
             stack.forEach(body => {
-                if (body.position.y < highestY) highestY = body.position.y;
+                // 【重要修正】落下中（速度が速い）の消しゴムは高さ計算に含めない
+                // これをしないと、スポーンした瞬間の高い位置にある消しゴムに合わせてカメラが上に飛んでしまう
+                // 速度1.0未満（ほぼ静止かゆっくり動いている）ものだけをターゲットにする
+                if (body.speed < 1.0 && body.position.y < highestY) {
+                    highestY = body.position.y;
+                }
             });
 
-            // 【修正】目標：最高地点が画面の55%くらいの位置に来るように（上45%を空ける）
-            // 以前は60%（上40%空き）だったが、余裕を持たせた
+            // 目標：最高地点が画面の55%くらいの位置に来るように（上45%を空ける）
             const targetCameraY = highestY - (height * 0.55);
             
             // カメラは上にしか行かない（または現在の位置より高ければ移動）
@@ -483,7 +486,7 @@
                 const speed = Vector.magnitude(Vector.sub(bodyA.velocity, bodyB.velocity));
                 if (speed > 1) playSound('hit');
 
-                // スコア更新：単純に「現在ワールドに存在する消しゴムの数」とする
+                // スコア更新
                 const currentStackCount = stack.length;
                 if (currentStackCount > score) {
                     score = currentStackCount;
