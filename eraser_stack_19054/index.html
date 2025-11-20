@@ -245,11 +245,19 @@
         window.addEventListener('resize', () => {
             const newW = container.clientWidth;
             const newH = container.clientHeight;
+            
             render.canvas.width = newW * window.devicePixelRatio;
             render.canvas.height = newH * window.devicePixelRatio;
             width = newW;
             height = newH;
-            // リサイズ時はカメラ位置のみ調整（ゲームリセットはしない）
+            
+            // リサイズ時にビューポートを強制更新して見切れを防ぐ
+            if (isGameActive) {
+                Render.lookAt(render, {
+                    min: { x: 0, y: cameraY },
+                    max: { x: width, y: cameraY + height }
+                });
+            }
         });
     };
 
@@ -312,7 +320,6 @@
         Engine.clear(engine); // キャッシュ等のクリア
 
         // 台座の作成
-        // 台座位置: 画面下から少し浮かせた位置 (ボタンエリアがあるので、Canvasの下端付近でもOKだが、少し余白を持たせる)
         const platformY = height - 60; 
         platformBody = Bodies.rectangle(width / 2, platformY, CONFIG.platform.w, CONFIG.platform.h, {
             isStatic: true,
@@ -324,7 +331,7 @@
         // ゲームオーバー判定用の床（画面外）
         const killZone = Bodies.rectangle(width / 2, height + 200, width * 5, 50, {
             isStatic: true,
-            isSensor: true, // 物理衝突はしないが検知はする
+            isSensor: true, 
             label: 'killZone'
         });
 
@@ -369,10 +376,14 @@
     function spawnPreview() {
         if (!isGameActive) return;
 
+        // プレビュー位置（初期Y座標）
+        // カメラ位置 + 画面高さの15% (見切れ防止のため固定値ではなく割合で)
+        const previewY = cameraY + (height * 0.15);
+
         // プレビュー用のデータオブジェクトを作成（物理ボディではない）
         currentPreview = {
             x: width / 2,
-            y: cameraY + 100, // カメラ位置に追従して上部に表示
+            y: previewY, 
             angle: 0,
             color: CONFIG.colors.sleeve
         };
@@ -389,6 +400,7 @@
             friction: 0.8,    // 滑りにくい
             density: 0.002,
             label: 'eraser',
+            render: { visible: false }, // 【修正】デフォルト描画をOFF (色付きボックス消去)
             plugin: { color: color } // 描画用に色を保存
         });
 
@@ -415,7 +427,8 @@
             // sin波で左右移動
             const offsetX = Math.sin(time * CONFIG.swing.speed) * (width * CONFIG.swing.rangeRatio / 2);
             currentPreview.x = (width / 2) + offsetX;
-            currentPreview.y = cameraY + 120; // 常に画面上部に維持
+            // 【修正】プレビューのY位置を常に「画面上端から15%」の位置に固定
+            currentPreview.y = cameraY + (height * 0.15);
         }
 
         // 2. カメラ追従 (Camera Follow)
@@ -427,8 +440,9 @@
                 if (body.position.y < highestY) highestY = body.position.y;
             });
 
-            // 目標：最高地点が画面の60%くらいの位置に来るように
-            const targetCameraY = highestY - (height * 0.6);
+            // 【修正】目標：最高地点が画面の55%くらいの位置に来るように（上45%を空ける）
+            // 以前は60%（上40%空き）だったが、余裕を持たせた
+            const targetCameraY = highestY - (height * 0.55);
             
             // カメラは上にしか行かない（または現在の位置より高ければ移動）
             if (targetCameraY < cameraY) {
@@ -470,7 +484,6 @@
                 if (speed > 1) playSound('hit');
 
                 // スコア更新：単純に「現在ワールドに存在する消しゴムの数」とする
-                // (killZoneに落ちたものは後で削除されるロジックを入れるとより正確だが、今回はstack数で簡易管理)
                 const currentStackCount = stack.length;
                 if (currentStackCount > score) {
                     score = currentStackCount;
