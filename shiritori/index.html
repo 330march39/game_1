@@ -226,6 +226,30 @@
 
             const timerRef = useRef(null);
             const scrollRef = useRef(null);
+            const checkTimeoutRef = useRef(null);
+
+            // --- Refs for Stale Closure Fix ---
+            // 通信ハンドラ内で最新のStateを参照するためのRefs
+            const stateRef = useRef({
+                ngWords,
+                history,
+                role,
+                myScore,
+                oppScore,
+                currentTurn
+            });
+
+            // Update ref on every render
+            useEffect(() => {
+                stateRef.current = {
+                    ngWords,
+                    history,
+                    role,
+                    myScore,
+                    oppScore,
+                    currentTurn
+                };
+            }, [ngWords, history, role, myScore, oppScore, currentTurn]);
 
             // --- Effects & Logic ---
 
@@ -272,7 +296,7 @@
                         } else if (err.type === 'peer-unavailable') {
                             setStatusMsg(`IDが見つかりません: ${targetId}`);
                         } else {
-                            // Don't show generic errors in UI to keep it clean, rely on statusMsg
+                            // Don't show generic errors in UI
                         }
                     });
 
@@ -317,7 +341,7 @@
             // --- Connection ---
 
             const setupConnection = (connection, myRole) => {
-                if (conn && conn.open) return; // Prevent double connect
+                if (conn && conn.open) return; 
                 setConn(connection);
                 setRole(myRole);
                 
@@ -327,12 +351,35 @@
                     setStatusMsg('');
                 });
 
-                connection.on('data', (data) => handleData(data));
+                // ここでRef経由でハンドラを呼ぶことで、常に最新のState/関数にアクセスできるようにする
+                // これにより「古いNGワードリストを参照してしまう」などのバグを防ぐ
+                connection.on('data', (data) => {
+                    handleDataRef.current(data);
+                });
+
                 connection.on('close', () => {
                     setPeerError('接続が切れました');
                     setConnectingState(false);
                 });
             };
+
+            // 最新のhandleDataを保持するRef
+            const handleDataRef = useRef(null);
+
+            // ハンドラの実体
+            const handleDataImpl = (data) => {
+                switch (data.type) {
+                    case 'READY': setOpponentReady(true); break;
+                    case 'MOVE': processReceivedWord(data.word); break;
+                    case 'RESULT': applyResult(data); break;
+                    case 'RESTART': resetGame(false); break;
+                }
+            };
+
+            // handleDataRefを更新
+            useEffect(() => {
+                handleDataRef.current = handleDataImpl;
+            });
 
             const joinGame = () => {
                 if (!peer || !targetId || isConnectingRef.current) return;
@@ -361,15 +408,6 @@
                 }, 300);
             };
 
-            const handleData = (data) => {
-                switch (data.type) {
-                    case 'READY': setOpponentReady(true); break;
-                    case 'MOVE': processReceivedWord(data.word); break;
-                    case 'RESULT': applyResult(data); break;
-                    case 'RESTART': resetGame(false); break;
-                }
-            };
-
             // --- Game Logic ---
 
             const handleReady = () => {
@@ -389,13 +427,17 @@
                     setHistory([{ word: 'しりとり', playedBy: 'system', damage: 0 }]);
                     setCurrentTurn('host'); 
                     setStatusMsg('');
-                    // Reset scores (HP logic: 0 damage taken = full HP)
                     setMyScore(0);
                     setOppScore(0);
                 }
             }, [iAmReady, opponentReady, gameState]);
 
             const processReceivedWord = (word) => {
+                // 最新のStateを参照するためにRefを使用
+                const currentNgWords = stateRef.current.ngWords;
+                const currentHistory = stateRef.current.history;
+                const currentRole = stateRef.current.role;
+
                 let damage = 0;
                 let reasons = [];
 
@@ -403,11 +445,11 @@
                     damage += 3;
                     reasons.push('「ん」がついた (即死)');
                 }
-                if (word === ngWords[3]) { damage += 3; reasons.push(`★3pt NGを踏んだ`); }
-                else if (word === ngWords[2]) { damage += 2; reasons.push(`★2pt NGを踏んだ`); }
-                else if (word === ngWords[1]) { damage += 1; reasons.push(`★1pt NGを踏んだ`); }
+                if (word === currentNgWords[3]) { damage += 3; reasons.push(`★3pt NGを踏んだ`); }
+                else if (word === currentNgWords[2]) { damage += 2; reasons.push(`★2pt NGを踏んだ`); }
+                else if (word === currentNgWords[1]) { damage += 1; reasons.push(`★1pt NGを踏んだ`); }
 
-                if (history.some(h => h.word === word)) {
+                if (currentHistory.some(h => h.word === word)) {
                     damage += 1;
                     reasons.push('既出ワード');
                 }
@@ -415,13 +457,18 @@
                 const resultData = {
                     type: 'RESULT',
                     word: word,
-                    playedBy: role === 'host' ? 'guest' : 'host', // The OTHER person played this
+                    playedBy: currentRole === 'host' ? 'guest' : 'host', // The OTHER person played this
                     damage: damage,
                     reasons: reasons,
-                    nextTurn: role // If guest played, now host's turn
+                    nextTurn: currentRole // If guest played, now host's turn
                 };
 
-                conn.send(resultData);
+                // 送信に失敗しないかチェック
+                if(conn && conn.open) {
+                    conn.send(resultData);
+                } else {
+                    console.error("Connection lost trying to send result");
+                }
                 applyResult(resultData);
             };
 
@@ -433,12 +480,23 @@
                 if (!/^[\u3040-\u309f]+$/.test(hira)) { setStatusMsg('ひらがなのみ有効'); return; }
                 if (lastChar && hira.charAt(0) !== lastChar) { setStatusMsg(`「${lastChar}」から開始！`); return; }
 
-                setStatusMsg('判定中...'); // Show spinner/text locally
-                conn.send({ type: 'MOVE', word: hira });
-                setInputWord('');
+                if(conn && conn.open) {
+                    setStatusMsg('判定中...'); 
+                    conn.send({ type: 'MOVE', word: hira });
+                    setInputWord('');
+
+                    // ★安全装置: 5秒経っても結果が返ってこなければリセットする
+                    if (checkTimeoutRef.current) clearTimeout(checkTimeoutRef.current);
+                    checkTimeoutRef.current = setTimeout(() => {
+                         setStatusMsg('通信エラー：再送してください');
+                    }, 5000);
+                } else {
+                    setStatusMsg('接続切れ：再読み込みしてください');
+                }
             };
 
             const handleTimeOut = () => {
+                // 自分がターンプレイヤーの場合のみタイムアウト処理を発火
                 if (currentTurn === role) {
                     const resultData = {
                         type: 'RESULT',
@@ -448,24 +506,28 @@
                         reasons: ['TIME OUT'],
                         nextTurn: role === 'host' ? 'guest' : 'host'
                     };
-                    conn.send(resultData);
+                    if(conn && conn.open) conn.send(resultData);
                     applyResult(resultData);
                 }
             };
 
             const applyResult = (data) => {
-                // Clear any local status messages (fixes spinning bug)
+                // ★成功したのでタイムアウトチェックをクリア
+                if (checkTimeoutRef.current) clearTimeout(checkTimeoutRef.current);
+
+                // Clear status messages
                 setStatusMsg('');
 
                 // Update history
                 setHistory(prev => [...prev, data]);
 
                 // Apply damage
-                // HP System: Max 3. Damage adds to Score (Damage Taken).
-                // If I played (playedBy === role) and damage > 0 -> I take damage (MyScore goes up)
-                // If Opponent played and damage > 0 -> Opponent takes damage (OppScore goes up)
                 if (data.damage > 0) {
                     triggerShake();
+                    // StateRefは読み取り専用なので、SetStateを使用
+                    // ここでのroleはクロージャ内の値だが、Component内関数なので最新のはず
+                    // しかし念の為 stateRef.current.role を使うのが無難だが、
+                    // ReactのsetState関数形式なら安全
                     if (data.playedBy === role) {
                         setMyScore(prev => Math.min(prev + data.damage, 3));
                     } else {
@@ -477,10 +539,6 @@
                 if (data.word !== '(時間切れ)') {
                     setLastChar(getLastChar(data.word));
                 }
-                
-                // Check Game Over immediately after score update possibility
-                // We use local vars for check because state updates are async
-                // But effect will handle actual screen switch
                 
                 if (myScore < 3 && oppScore < 3) {
                      setCurrentTurn(data.nextTurn);
@@ -495,7 +553,7 @@
             };
 
             const resetGame = (sendSignal = true) => {
-                if (sendSignal && conn) conn.send({ type: 'RESTART' });
+                if (sendSignal && conn && conn.open) conn.send({ type: 'RESTART' });
                 setMyScore(0);
                 setOppScore(0);
                 setHistory([{ word: 'しりとり', playedBy: 'system', damage: 0 }]);
@@ -677,11 +735,6 @@
                     {/* Chat Area */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth" ref={scrollRef}>
                         {history.map((h, i) => {
-                            // Logic: 'playedBy' tells us who sent the word.
-                            // If playedBy === role (me), display on right.
-                            // If playedBy === 'system', center.
-                            // Else, opponent (left).
-                            
                             if (h.playedBy === 'system') {
                                 return (
                                     <div key={i} className="flex justify-center my-4">
@@ -708,7 +761,6 @@
                                 </div>
                             );
                         })}
-                        {/* Turn Indicator inside chat flow */}
                         <div className="h-12"></div> 
                     </div>
 
