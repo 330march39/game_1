@@ -228,7 +228,7 @@
             const scrollRef = useRef(null);
             const checkTimeoutRef = useRef(null);
 
-            // --- Refs for Stale Closure Fix ---
+            // --- Refs for Stale Closure Fix (バグ修正の要) ---
             // 通信ハンドラ内で最新のStateを参照するためのRefs
             const stateRef = useRef({
                 ngWords,
@@ -236,7 +236,8 @@
                 role,
                 myScore,
                 oppScore,
-                currentTurn
+                currentTurn,
+                targetId // 追加：これによりエラーハンドラ内で最新の入力IDを参照可能にする
             });
 
             // Update ref on every render
@@ -247,9 +248,10 @@
                     role,
                     myScore,
                     oppScore,
-                    currentTurn
+                    currentTurn,
+                    targetId
                 };
-            }, [ngWords, history, role, myScore, oppScore, currentTurn]);
+            }, [ngWords, history, role, myScore, oppScore, currentTurn, targetId]);
 
             // --- Effects & Logic ---
 
@@ -284,19 +286,23 @@
                     });
 
                     newPeer.on('error', (err) => {
-                         // Ignore non-fatal errors
+                        // Ignore non-fatal errors
                         if (err.message && (err.message.includes('stable') || err.message.includes('setRemoteDescription'))) return;
                         
                         console.error("Peer Error:", err);
+                        
+                        // ★修正: エラー発生時は確実に接続中フラグを解除する
                         setConnectingState(false);
                         
                         if (err.type === 'unavailable-id') {
                             newPeer.destroy();
                             initPeer(retryCount + 1);
                         } else if (err.type === 'peer-unavailable') {
-                            setStatusMsg(`IDが見つかりません: ${targetId}`);
+                            // ★修正: Refを使って最新のIDを表示する
+                            setStatusMsg(`IDが見つかりません: ${stateRef.current.targetId}`);
                         } else {
-                            // Don't show generic errors in UI
+                            // その他のエラーも表示する（開発・デバッグ用）
+                            // setStatusMsg(`エラー: ${err.type}`);
                         }
                     });
 
@@ -351,8 +357,7 @@
                     setStatusMsg('');
                 });
 
-                // ここでRef経由でハンドラを呼ぶことで、常に最新のState/関数にアクセスできるようにする
-                // これにより「古いNGワードリストを参照してしまう」などのバグを防ぐ
+                // Ref経由でハンドラを呼ぶ
                 connection.on('data', (data) => {
                     handleDataRef.current(data);
                 });
@@ -382,8 +387,18 @@
             });
 
             const joinGame = () => {
-                if (!peer || !targetId || isConnectingRef.current) return;
-                const fullTargetId = "NGW-" + targetId.trim().toUpperCase();
+                // 入力IDを正規化
+                const currentTargetId = targetId.trim().toUpperCase();
+                
+                if (!peer || !currentTargetId || isConnectingRef.current) return;
+                
+                // 自分自身への接続を防ぐ
+                if (currentTargetId === myId) {
+                    setStatusMsg("自分自身には接続できません");
+                    return;
+                }
+
+                const fullTargetId = "NGW-" + currentTargetId;
                 
                 if (conn) conn.close();
                 if (peer.disconnected) peer.reconnect();
@@ -397,13 +412,15 @@
                         setupConnection(connection, 'guest');
                         
                         setTimeout(() => {
+                            // 5秒経ってもつながらない場合
                             if (!connection.open && isConnectingRef.current) {
-                                setStatusMsg("応答がありません...");
+                                setStatusMsg("応答がありません...IDを確認してください");
                                 setTimeout(() => setConnectingState(false), 2000);
                             }
                         }, 5000);
                     } catch (e) {
                         setConnectingState(false);
+                        setStatusMsg("接続開始エラー");
                     }
                 }, 300);
             };
@@ -433,7 +450,6 @@
             }, [iAmReady, opponentReady, gameState]);
 
             const processReceivedWord = (word) => {
-                // 最新のStateを参照するためにRefを使用
                 const currentNgWords = stateRef.current.ngWords;
                 const currentHistory = stateRef.current.history;
                 const currentRole = stateRef.current.role;
@@ -457,13 +473,12 @@
                 const resultData = {
                     type: 'RESULT',
                     word: word,
-                    playedBy: currentRole === 'host' ? 'guest' : 'host', // The OTHER person played this
+                    playedBy: currentRole === 'host' ? 'guest' : 'host', 
                     damage: damage,
                     reasons: reasons,
-                    nextTurn: currentRole // If guest played, now host's turn
+                    nextTurn: currentRole 
                 };
 
-                // 送信に失敗しないかチェック
                 if(conn && conn.open) {
                     conn.send(resultData);
                 } else {
@@ -485,7 +500,6 @@
                     conn.send({ type: 'MOVE', word: hira });
                     setInputWord('');
 
-                    // ★安全装置: 5秒経っても結果が返ってこなければリセットする
                     if (checkTimeoutRef.current) clearTimeout(checkTimeoutRef.current);
                     checkTimeoutRef.current = setTimeout(() => {
                          setStatusMsg('通信エラー：再送してください');
@@ -496,7 +510,6 @@
             };
 
             const handleTimeOut = () => {
-                // 自分がターンプレイヤーの場合のみタイムアウト処理を発火
                 if (currentTurn === role) {
                     const resultData = {
                         type: 'RESULT',
@@ -512,22 +525,12 @@
             };
 
             const applyResult = (data) => {
-                // ★成功したのでタイムアウトチェックをクリア
                 if (checkTimeoutRef.current) clearTimeout(checkTimeoutRef.current);
-
-                // Clear status messages
                 setStatusMsg('');
-
-                // Update history
                 setHistory(prev => [...prev, data]);
 
-                // Apply damage
                 if (data.damage > 0) {
                     triggerShake();
-                    // StateRefは読み取り専用なので、SetStateを使用
-                    // ここでのroleはクロージャ内の値だが、Component内関数なので最新のはず
-                    // しかし念の為 stateRef.current.role を使うのが無難だが、
-                    // ReactのsetState関数形式なら安全
                     if (data.playedBy === role) {
                         setMyScore(prev => Math.min(prev + data.damage, 3));
                     } else {
@@ -535,7 +538,6 @@
                     }
                 }
 
-                // Next Turn logic
                 if (data.word !== '(時間切れ)') {
                     setLastChar(getLastChar(data.word));
                 }
@@ -715,8 +717,6 @@
                     
                     {/* Header / HUD */}
                     <div className="p-4 bg-slate-900/80 backdrop-blur border-b border-slate-800 z-10 flex justify-between items-end shadow-lg">
-                        {/* Player (Right in chat, but Left in HUD for standard reading?) Let's stick to standard game HUD: P1 Left, P2 Right. Since 'Right' is ME in chat, let's put ME on Right in HUD too to match. */}
-                        
                         {/* OPPONENT HUD (Left) */}
                         <LifeBar hp={3 - oppScore} isSelf={false} />
 
