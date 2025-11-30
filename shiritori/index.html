@@ -176,7 +176,7 @@
                 setPeerError(null);
                 
                 const newPeer = new Peer(fullId, { 
-                    debug: 1, // Debug level low to avoid spam
+                    debug: 1, 
                     config: {'iceServers': [
                         { url: 'stun:stun.l.google.com:19302' },
                         { url: 'stun:stun1.l.google.com:19302' }
@@ -194,25 +194,29 @@
                 });
 
                 newPeer.on('error', (err) => {
-                    console.error("Peer Error Logged:", err);
-                    setConnectingState(false);
-
-                    if (err.type === 'unavailable-id') {
-                        newPeer.destroy();
-                        initPeer(retryCount + 1);
-                        return;
-                    }
-
-                    // ★ CRITICAL FIX: Ignore non-fatal WebRTC state errors
-                    // These happen frequently in P2P and usually don't mean the connection failed.
+                    // ★ 修正ポイント: エラーのフィルタリングを最優先に行う
+                    
+                    // 1. 無視すべき非致命的エラー
                     if (err.message && (
                         err.message.includes('stable') || 
                         err.message.includes('setRemoteDescription') ||
                         err.message.includes('InvalidStateError')
                     )) {
                         console.warn("Suppressed non-fatal PeerJS error:", err.message);
-                        return; // Do NOT update UI error state
+                        // ここで return することで、UIの状態変更（setConnectingState(false)）を防ぐ
+                        return; 
                     }
+
+                    // 2. 自動リトライが必要なエラー
+                    if (err.type === 'unavailable-id') {
+                        newPeer.destroy();
+                        initPeer(retryCount + 1);
+                        return;
+                    }
+
+                    // 3. ユーザーに通知すべき致命的エラー
+                    console.error("Peer Error:", err);
+                    setConnectingState(false); // UIのロックを解除
 
                     if (err.type === 'peer-unavailable') {
                         setStatusMsg(`エラー: ID「${targetId}」が見つかりません。`);
@@ -279,6 +283,7 @@
             };
 
             const setupConnection = (connection, myRole) => {
+                // 既存の接続が有効なら新しい接続は無視
                 if (conn && conn.open) {
                     console.log("Already connected, ignoring new connection attempt.");
                     return;
@@ -306,7 +311,6 @@
                 connection.on('error', (err) => {
                     console.error("Connection Error:", err);
                     setConnectingState(false);
-                    // Connection errors are also often non-fatal race conditions in PeerJS
                 });
             };
 
@@ -321,6 +325,7 @@
                 const cleanId = targetId.trim().toUpperCase();
                 const fullTargetId = "NGW-" + cleanId;
 
+                // 既存の接続をクリーンアップ
                 if (conn) {
                     conn.close();
                     setConn(null);
@@ -348,9 +353,11 @@
                         
                         setupConnection(connection, 'guest');
 
+                        // 接続タイムアウト監視
                         setTimeout(() => {
                             if (!connection.open && isConnectingRef.current) {
                                 setStatusMsg("接続に時間がかかっています...");
+                                // タイムアウトしてもすぐにはロック解除せず、少し待つ
                                 setTimeout(() => setConnectingState(false), 3000);
                             }
                         }, 5000);
@@ -360,7 +367,7 @@
                         setConnectingState(false);
                         setStatusMsg("接続エラー");
                     }
-                }, 200);
+                }, 300); // 待機時間を少し延長
             };
 
             const handleData = (data) => {
