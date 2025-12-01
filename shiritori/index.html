@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FORBIDDEN: V13 PERFECT</title>
+    <title>FORBIDDEN: V14 PERFECT TURN</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -179,6 +179,7 @@
         const DISCONNECT_TIMEOUT = 30000;
         const CONNECTION_WARNING_TIMEOUT = 3000;
         const TYPING_TIMEOUT = 3000;
+        const TURN_ANIM_DURATION = 2000; // Time for "YOUR TURN" animation
         
         const HIRAGANA_CHARS = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわがぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ";
         const getRandomChar = () => HIRAGANA_CHARS[Math.floor(Math.random() * HIRAGANA_CHARS.length)];
@@ -278,11 +279,13 @@
             const [displayTimer, setDisplayTimer] = useState(0); 
             const [phaseStartTime, setPhaseStartTime] = useState(0); 
             const [turnStartTime, setTurnStartTime] = useState(0); 
+            const [isInputLocked, setIsInputLocked] = useState(false);
             
             // Internal State Refs
             const stateRef = useRef({ 
                 phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName,
-                turnStartTime, phaseStartTime, lastActiveTime, isMyTopicConfirmed, isOppTopicConfirmed, initialChar
+                turnStartTime, phaseStartTime, lastActiveTime, isMyTopicConfirmed, isOppTopicConfirmed, initialChar,
+                isInputLocked
             });
             const connRef = useRef(null); 
             const scrollRef = useRef(null);
@@ -294,27 +297,10 @@
             useEffect(() => {
                 stateRef.current = { 
                     phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName,
-                    turnStartTime, phaseStartTime, lastActiveTime, isMyTopicConfirmed, isOppTopicConfirmed, initialChar
+                    turnStartTime, phaseStartTime, lastActiveTime, isMyTopicConfirmed, isOppTopicConfirmed, initialChar,
+                    isInputLocked
                 };
-            }, [phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName, turnStartTime, phaseStartTime, lastActiveTime, isMyTopicConfirmed, isOppTopicConfirmed, initialChar]);
-
-            // Turn Notification & Input Reset
-            useEffect(() => {
-                if (phase === 'playing') {
-                    const isMyTurn = turn === (isHost ? 'host' : 'guest');
-                    
-                    // Reset input if not my turn
-                    if (!isMyTurn) setInput('');
-
-                    // Delay turn notification to show AFTER damage alert
-                    const delay = 2500; 
-                    const timer = setTimeout(() => {
-                        setTurnNotify(isMyTurn ? 'me' : 'rival');
-                        setTimeout(() => setTurnNotify(null), 2000);
-                    }, delay);
-                    return () => clearTimeout(timer);
-                }
-            }, [turn, phase, isHost]);
+            }, [phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName, turnStartTime, phaseStartTime, lastActiveTime, isMyTopicConfirmed, isOppTopicConfirmed, initialChar, isInputLocked]);
 
             // Load/Save Name
             useEffect(() => { const saved = localStorage.getItem('nwb_username'); if(saved) setUserName(saved); }, []);
@@ -373,19 +359,29 @@
                         targetTime = s.phaseStartTime;
                         duration = TIMER_SETUP;
                     } else if (s.phase === 'playing' && s.turnStartTime > 0) {
+                        // Logic: Turn start time is in FUTURE during animation.
+                        // While now < turnStartTime, timer is full.
+                        // When now >= turnStartTime, timer counts down.
                         targetTime = s.turnStartTime;
                         duration = TIMER_GAME;
                     }
 
                     if (targetTime > 0) {
-                        const elapsedSec = (now - targetTime) / 1000;
-                        const remain = Math.max(0, Math.ceil(duration - elapsedSec));
-                        setDisplayTimer(remain);
+                        if (s.phase === 'playing' && now < targetTime) {
+                            // Waiting for turn start (animation playing)
+                            setDisplayTimer(TIMER_GAME);
+                            setIsInputLocked(true);
+                        } else {
+                            const elapsedSec = (now - targetTime) / 1000;
+                            const remain = Math.max(0, Math.ceil(duration - elapsedSec));
+                            setDisplayTimer(remain);
+                            setIsInputLocked(false);
 
-                        if (s.isHost && remain <= 0) {
-                            if (s.phase === 'playing') handleTimeout();
-                            else if (s.phase === 'ng_input') forceStartGame();
-                            else if (s.phase === 'topic_input') forceSubmitTopic();
+                            if (s.isHost && remain <= 0) {
+                                if (s.phase === 'playing') handleTimeout();
+                                else if (s.phase === 'ng_input') forceStartGame();
+                                else if (s.phase === 'topic_input') forceSubmitTopic();
+                            }
                         }
                     }
                     loopRef.current = requestAnimationFrame(loop);
@@ -440,7 +436,7 @@
                     case 'SYNC_FULL':
                         setOppHp(prev => Math.min(prev, data.myHp));
                         setMyHp(prev => Math.min(prev, data.oppHp));
-                        if(data.oppHp <= 0 || data.myHp <= 0) setTimeout(() => setPhase('result'), 100); // Check Victory/Defeat sync
+                        if(data.oppHp <= 0 || data.myHp <= 0) setTimeout(() => setPhase('result'), 100); 
                         setTurn(data.turn); setTurnStartTime(data.turnStartTime);
                         if(data.history.length > s.history.length) setHistory(data.history);
                         setLastChar(data.lastChar); setInitialChar(data.initialChar);
@@ -465,17 +461,32 @@
                         break;
                     case 'COIN_TOSS_START':
                         setCoinResult(data.result); setLastChar(data.initialChar); setInitialChar(data.initialChar); setPhase('coin');
-                        setTimeout(() => { setPhase('playing'); setTurn(data.result); setHistory([]); }, 4000);
+                        setTimeout(() => { 
+                            setPhase('playing'); setTurn(data.result); setHistory([]); 
+                            // Initial turn starts immediately
+                            const now = Date.now();
+                            const startTime = now + TURN_ANIM_DURATION; // Wait for initial "YOUR TURN"
+                            setTurnStartTime(startTime);
+                            triggerTurnAnim(data.result === (isHost ? 'host' : 'guest') ? 'me' : 'rival', 0);
+                        }, 4000);
                         break;
-                    case 'START_GAME': setPhase('playing'); setTurnStartTime(data.startTime); break;
+                    case 'START_GAME': 
+                        // Host sends this just to sync time ref
+                        setPhase('playing'); setTurnStartTime(data.startTime); 
+                        break;
                     case 'MOVE': 
                         setIsOpponentTyping(false); 
                         receiveMove(data.word); 
                         break;
                     case 'TURN_CHANGE':
                         processingTimeout.current = false;
-                        setTurn(data.nextTurn); setTurnStartTime(data.startTime);
+                        setTurn(data.nextTurn); 
+                        setTurnStartTime(data.startTime);
                         setMyHp(data.oppHp); setOppHp(data.myHp);
+                        // Trigger Anim based on delay
+                        triggerTurnAnim(data.nextTurn === (isHost ? 'host' : 'guest') ? 'me' : 'rival', data.delay);
+                        // Reset input if it's not my turn anymore
+                        if (data.nextTurn !== (isHost ? 'host' : 'guest')) setInput('');
                         break;
                     case 'DAMAGE_REPORT':
                         applyDamage('me', data.amount, data.reason);
@@ -488,9 +499,19 @@
                         setHistory(prev => [...prev, { type: 'timeout', owner: data.victim }]);
                         const victimOwner = data.victim === 'host' ? (s.isHost ? 'me' : 'opp') : (s.isHost ? 'opp' : 'me');
                         applyDamage(victimOwner === 'me' ? 'me' : 'opp', 1, '時間切れ');
+                        // Trigger Anim with delay for damage
+                        triggerTurnAnim(data.nextTurn === (isHost ? 'host' : 'guest') ? 'me' : 'rival', 3000);
                         break;
                     case 'REMATCH': resetGame(); break;
                 }
+            };
+
+            // --- ANIMATION TRIGGERS ---
+            const triggerTurnAnim = (who, delay) => {
+                setTimeout(() => {
+                    setTurnNotify(who);
+                    setTimeout(() => setTurnNotify(null), 2000);
+                }, delay);
             };
 
             // --- INPUT HANDLING ---
@@ -572,8 +593,14 @@
                 send({ type: 'COIN_TOSS_START', result: firstPlayer, initialChar });
                 setCoinResult(firstPlayer); setLastChar(initialChar); setInitialChar(initialChar); setPhase('coin');
                 setTimeout(() => {
-                    setPhase('playing'); setTurn(firstPlayer); setHistory([]); setTurnStartTime(Date.now());
-                    send({ type: 'START_GAME', startTime: Date.now(), initialChar }); 
+                    setPhase('playing'); setTurn(firstPlayer); setHistory([]); 
+                    
+                    const now = Date.now();
+                    const startTime = now + TURN_ANIM_DURATION;
+                    setTurnStartTime(startTime);
+                    triggerTurnAnim(firstPlayer === 'host' ? 'me' : 'rival', 0);
+
+                    send({ type: 'START_GAME', startTime: startTime, initialChar }); 
                 }, 4000);
             };
 
@@ -592,6 +619,8 @@
 
                 const nextTurn = s.turn === 'host' ? 'guest' : 'host';
                 const now = Date.now();
+                // 3000ms delay for damage anim + 2000ms for turn anim
+                const nextStartTime = now + 3000 + TURN_ANIM_DURATION; 
 
                 if (s.isHost) {
                      if(victim === 'host') applyDamage('me', damage, '時間切れ');
@@ -600,7 +629,8 @@
 
                 setHistory(prev => [...prev, { type: 'timeout', owner: victim }]);
                 setTurn(nextTurn);
-                setTurnStartTime(now);
+                setTurnStartTime(nextStartTime);
+                triggerTurnAnim(nextTurn === 'host' ? 'me' : 'rival', 3000);
                 
                 send({ 
                     type: 'TIMEOUT_PENALTY', 
@@ -608,7 +638,7 @@
                     myHp: newHostHp, 
                     oppHp: newGuestHp, 
                     nextTurn: nextTurn,
-                    startTime: now
+                    startTime: nextStartTime
                 });
                 
                 setTimeout(() => { processingTimeout.current = false; }, 500); 
@@ -635,7 +665,7 @@
                 setInput('');
                 send({ type: 'MOVE', word: hira });
                 setLastChar(getLastChar(hira));
-                changeTurnInternal(isHost?'guest':'host');
+                changeTurnInternal(isHost?'guest':'host', false);
             };
 
             const receiveMove = (word) => {
@@ -652,21 +682,40 @@
                 setHistory(prev => [...prev, { word, owner, damage: dmg }]);
                 setLastChar(getLastChar(word));
 
-                if(dmg > 0) {
+                const hasDamage = dmg > 0;
+
+                if(hasDamage) {
                     applyDamage('opp', dmg, reason);
                     const newOppHp = Math.max(0, s.oppHp - dmg);
                     send({ type: 'DAMAGE_REPORT', amount: dmg, reason, remainingHp: newOppHp });
                 }
 
-                if (s.isHost) changeTurnInternal(s.isHost ? 'host' : 'guest');
-                else setTurn(s.isHost ? 'host' : 'guest');
+                if (s.isHost) changeTurnInternal(s.isHost ? 'host' : 'guest', hasDamage);
+                else {
+                    // Speculative update for Guest UI fluidity, though Host authority will override start time
+                    setTurn(s.isHost ? 'host' : 'guest');
+                    triggerTurnAnim(s.isHost ? 'me' : 'rival', hasDamage ? 3000 : 0);
+                }
             };
 
-            const changeTurnInternal = (next) => {
+            const changeTurnInternal = (next, hasDamage) => {
                 const now = Date.now();
-                setTurn(next); setTurnStartTime(now);
+                const delay = hasDamage ? 3000 : 0;
+                const nextStartTime = now + delay + TURN_ANIM_DURATION;
+                
+                setTurn(next); 
+                setTurnStartTime(nextStartTime);
+                triggerTurnAnim(next === (stateRef.current.isHost ? 'host' : 'guest') ? 'me' : 'rival', delay);
+
                 if (stateRef.current.isHost) {
-                    send({ type: 'TURN_CHANGE', nextTurn: next, startTime: now, myHp: stateRef.current.myHp, oppHp: stateRef.current.oppHp });
+                    send({ 
+                        type: 'TURN_CHANGE', 
+                        nextTurn: next, 
+                        startTime: nextStartTime, 
+                        delay: delay,
+                        myHp: stateRef.current.myHp, 
+                        oppHp: stateRef.current.oppHp 
+                    });
                 }
             };
 
@@ -778,7 +827,7 @@
                     )}
 
                     {phase === 'vs' && (
-                        <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden scale-75 md:scale-100 origin-center">
+                        <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
                             <div className="absolute inset-0 vs-bg opacity-30"></div>
                             <div className="relative w-full h-full flex items-center justify-center">
                                 <div className="absolute left-0 top-1/4 w-full md:w-1/2 h-32 md:h-48 bg-cyan-900/30 border-r-4 border-cyan-500 transform skew-x-12 -ml-10 flex items-center justify-end pr-10 slide-in-left"><div className="text-right transform -skew-x-12"><div className="text-cyan-300 text-sm tracking-[0.5em] mb-2">CHALLENGER</div><div className="text-3xl md:text-5xl font-black text-white">{userName || 'YOU'}</div></div></div>
@@ -797,7 +846,6 @@
                                 <div className="coin-face coin-front">YOU</div>
                                 <div className="coin-face coin-back">RIVAL</div>
                             </div>
-                            <div className="mt-12 text-2xl font-bold animate-bounce">{coinResult === (isHost?'host':'guest') ? 'YOU GO FIRST!' : 'RIVAL GOES FIRST!'}</div>
                         </div>
                     )}
 
@@ -807,7 +855,7 @@
 
                     {(phase === 'playing' || phase === 'result') && (
                         <div className="flex flex-col h-full z-10 bg-slate-900/50 relative">
-                            <div className="absolute top-0 left-0 right-0 z-30 p-4 bg-slate-900 border-b border-slate-700 shadow-xl flex justify-between items-end"><div className="w-1/3"><div className="text-[10px] text-rose-500 font-bold mb-1 truncate">{oppName}</div><div className="flex gap-1 h-2">{[...Array(MAX_HP)].map((_,i) => <div key={i} className={`flex-1 rounded-sm ${i<oppHp?'bg-rose-500 shadow-[0_0_5px_#f43f5e]':'bg-slate-800'}`}></div>)}</div></div><div className="text-center"><div className={`text-4xl font-black ${displayTimer<=5?'text-rose-500 animate-pulse':'text-white'}`} style={{fontFamily: 'Black Ops One'}}>{displayTimer}</div></div><div className="w-1/3 text-right"><div className="text-[10px] text-cyan-400 font-bold mb-1 truncate">{userName || 'YOU'}</div><div className="flex gap-1 h-2 justify-end">{[...Array(MAX_HP)].map((_,i) => <div key={i} className={`flex-1 rounded-sm ${i<myHp?'bg-cyan-400 shadow-[0_0_5px_#06b6d4]':'bg-slate-800'}`}></div>)}</div></div></div>
+                            <div className="absolute top-0 left-0 right-0 z-30 p-4 bg-slate-900 border-b border-slate-700 shadow-xl flex justify-between items-end"><div className="w-1/3"><div className="text-[10px] text-rose-500 font-bold mb-1 truncate">{oppName}</div><div className="flex gap-1 h-2">{[...Array(MAX_HP)].map((_,i) => <div key={i} className={`flex-1 rounded-sm ${i<oppHp?'bg-rose-500 shadow-[0_0_5px_#f43f5e]':'bg-slate-800'}`}></div>)}</div></div><div className="text-center"><div className={`text-4xl font-black ${displayTimer<=5?'text-rose-500 animate-pulse':'text-white'}`} style={{fontFamily: 'Black Ops One'}}>{isInputLocked ? 'READY...' : displayTimer}</div></div><div className="w-1/3 text-right"><div className="text-[10px] text-cyan-400 font-bold mb-1 truncate">{userName || 'YOU'}</div><div className="flex gap-1 h-2 justify-end">{[...Array(MAX_HP)].map((_,i) => <div key={i} className={`flex-1 rounded-sm ${i<myHp?'bg-cyan-400 shadow-[0_0_5px_#06b6d4]':'bg-slate-800'}`}></div>)}</div></div></div>
                             <div className="h-24 flex-none"></div>
                             <div className="flex-none z-20 space-y-1"><div className="bg-slate-900/80 border-y border-slate-800 py-1 text-center text-xs text-slate-300">MISSION: <span className="text-white font-bold">{selectedTopic?.text}</span></div><div className="flex justify-center gap-2 px-2">{[ngWords.high, ngWords.mid, ngWords.low].map((w, i) => w && <div key={i} className="bg-rose-950/60 border border-rose-800 text-rose-300 px-2 py-0.5 text-[10px] rounded backdrop-blur border-b-2">{w} <span className="text-rose-500 font-bold">{3-i}pt</span></div>)}</div></div>
                             
@@ -843,11 +891,11 @@
 
                             {/* INPUT */}
                             <div className="flex-none p-3 pb-6 bg-black border-t border-slate-800 z-30">
-                                <div className="flex justify-between items-center mb-2"><div className="text-xs text-slate-500">LAST: <span className="text-white text-xl font-bold">{lastChar || initialChar}</span></div><div className={`text-xs font-bold ${isMyTurn?'text-cyan-400 animate-pulse':'text-slate-600'}`}>{isMyTurn?'YOUR TURN':'WAITING'}</div></div>
+                                <div className="flex justify-between items-center mb-2"><div className="text-xs text-slate-500">LAST: <span className="text-white text-xl font-bold">{lastChar || initialChar}</span></div><div className={`text-xs font-bold ${isMyTurn && !isInputLocked ? 'text-cyan-400 animate-pulse' : 'text-slate-600'}`}>{isMyTurn && !isInputLocked ? 'YOUR TURN' : 'WAITING'}</div></div>
                                 {isMyTurn ? (
                                     <div className="flex gap-2">
-                                        <input value={input} onChange={handleInputChange} onBlur={handleInputBlur} onKeyDown={e=>e.key==='Enter'&&phase==='playing'&&submitWord()} className="flex-1 bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded outline-none focus:border-cyan-500 transition-colors" placeholder="入力..."/>
-                                        <Button onClick={submitWord} disabled={!input} icon="send" className="!px-4" />
+                                        <input value={input} onChange={handleInputChange} onBlur={handleInputBlur} onKeyDown={e=>e.key==='Enter'&&phase==='playing'&&!isInputLocked&&submitWord()} disabled={isInputLocked} className={`flex-1 bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded outline-none focus:border-cyan-500 transition-colors ${isInputLocked ? 'opacity-50 cursor-not-allowed' : ''}`} placeholder={isInputLocked ? "TURN STARTING..." : "入力..."}/>
+                                        <Button onClick={submitWord} disabled={!input || isInputLocked} icon="send" className="!px-4" />
                                     </div>
                                 ) : (
                                     <div className="w-full bg-slate-900/50 border border-slate-800 py-3 rounded text-center text-slate-500 font-bold tracking-widest pulse-text">WAITING FOR RIVAL...</div>
