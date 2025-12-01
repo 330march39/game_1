@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FORBIDDEN: STRATEGY WORD BATTLE</title>
+    <title>FORBIDDEN: V13 PERFECT</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -167,7 +167,12 @@
         const { useState, useEffect, useRef } = React;
 
         // --- CONSTANTS ---
-        const SAMPLE_TOPICS = ["アニメキャラ", "学校にあるもの", "コンビニの商品", "4文字の言葉", "緑色のもの", "歴史上の人物"];
+        const SAMPLE_TOPICS = [
+            "アニメキャラ", "学校にあるもの", "コンビニの商品", "4文字の言葉", "緑色のもの", "歴史上の人物",
+            "赤いもの", "丸いもの", "国名・地名", "動物", "水の中の生き物", "冬に関連するもの",
+            "キッチンにあるもの", "スポーツ", "職業", "カタカナ語", "3文字の言葉", "甘いもの",
+            "冷たいもの", "空を飛ぶもの", "黄色いもの", "家にあるもの", "漢字2文字", "夏に関連するもの"
+        ];
         const MAX_HP = 5;
         const TIMER_SETUP = 60; 
         const TIMER_GAME = 60; 
@@ -234,12 +239,13 @@
             // User Data
             const [userName, setUserName] = useState('');
             const [oppName, setOppName] = useState('RIVAL');
+            const [showHostInfo, setShowHostInfo] = useState(false);
 
             // Flow
             const [phase, setPhase] = useState('lobby'); 
             const [error, setError] = useState('');
             const [damageAlert, setDamageAlert] = useState(null);
-            const [turnNotify, setTurnNotify] = useState(null); // 'me' or 'rival' for animation
+            const [turnNotify, setTurnNotify] = useState(null); 
 
             // Connection Health
             const [lastActiveTime, setLastActiveTime] = useState(Date.now());
@@ -292,12 +298,20 @@
                 };
             }, [phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName, turnStartTime, phaseStartTime, lastActiveTime, isMyTopicConfirmed, isOppTopicConfirmed, initialChar]);
 
-            // Turn Notification Effect
+            // Turn Notification & Input Reset
             useEffect(() => {
                 if (phase === 'playing') {
                     const isMyTurn = turn === (isHost ? 'host' : 'guest');
-                    setTurnNotify(isMyTurn ? 'me' : 'rival');
-                    const timer = setTimeout(() => setTurnNotify(null), 2000);
+                    
+                    // Reset input if not my turn
+                    if (!isMyTurn) setInput('');
+
+                    // Delay turn notification to show AFTER damage alert
+                    const delay = 2500; 
+                    const timer = setTimeout(() => {
+                        setTurnNotify(isMyTurn ? 'me' : 'rival');
+                        setTimeout(() => setTurnNotify(null), 2000);
+                    }, delay);
                     return () => clearTimeout(timer);
                 }
             }, [turn, phase, isHost]);
@@ -426,6 +440,7 @@
                     case 'SYNC_FULL':
                         setOppHp(prev => Math.min(prev, data.myHp));
                         setMyHp(prev => Math.min(prev, data.oppHp));
+                        if(data.oppHp <= 0 || data.myHp <= 0) setTimeout(() => setPhase('result'), 100); // Check Victory/Defeat sync
                         setTurn(data.turn); setTurnStartTime(data.turnStartTime);
                         if(data.history.length > s.history.length) setHistory(data.history);
                         setLastChar(data.lastChar); setInitialChar(data.initialChar);
@@ -688,6 +703,7 @@
                 setHistory([]); setMyHp(MAX_HP); setOppHp(MAX_HP); setDamageAlert(null);
                 setTurnStartTime(0); setPhaseStartTime(0); setIsUnstable(false); setInitialChar('');
                 setIsOpponentTyping(false); processingTimeout.current = false; setTurnNotify(null);
+                setShowHostInfo(false);
             };
             const copyId = () => {
                  const t = document.createElement("textarea"); t.value = myId;
@@ -704,7 +720,7 @@
                     <div className="scanlines"></div>
                     <div className="crt-glow"></div>
 
-                    {/* TURN NOTIFICATION OVERLAY */}
+                    {/* TURN NOTIFICATION */}
                     {turnNotify && (
                         <div className={`fixed top-1/4 left-0 w-full z-[100] pointer-events-none flex ${turnNotify === 'me' ? 'justify-start' : 'justify-end'}`}>
                             <div className={`
@@ -736,14 +752,33 @@
                             <div className="text-center relative"><h1 className="text-6xl md:text-8xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-t from-cyan-600 to-white glitch-text" style={{fontFamily: 'Black Ops One'}}>FORBIDDEN</h1><p className="text-cyan-500 tracking-[1em] text-xs mt-2 font-bold">NEON WORD BATTLE</p></div>
                             <div className="w-full max-w-sm space-y-6">
                                 <div className="cyber-box p-6"><div className="text-cyan-400 text-xs font-bold mb-4 tracking-widest border-b border-cyan-900 pb-2">PLAYER SETUP</div><CyberInput value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="ENTER NAME" label="CODENAME (MAX 8)" maxLength={8}/></div>
-                                <div className="cyber-box p-6"><div className="text-cyan-400 text-xs font-bold mb-2 tracking-widest">HOST UNIT</div><div className="flex gap-2"><div className="flex-1 bg-black/50 border border-cyan-900/50 flex items-center justify-center text-2xl font-mono text-cyan-200 h-14">{myId || 'INIT...'}</div><Button onClick={copyId} variant="ghost" icon="copy" /></div></div>
-                                <div className="cyber-box p-6 !border-rose-500/50"><div className="text-rose-400 text-xs font-bold mb-2 tracking-widest">JOIN TARGET</div><div className="flex flex-wrap gap-2"><input value={targetId} onChange={handleIdChange} placeholder="TARGET ID" className="flex-1 min-w-[140px] bg-black/50 border border-rose-900/50 text-rose-200 px-4 py-3 text-center text-xl font-mono outline-none focus:border-rose-500"/><Button onClick={connect} variant="danger" className="flex-1 min-w-[80px]">JOIN</Button></div></div>
+                                
+                                <div className="cyber-box p-6 !border-rose-500/50">
+                                    <div className="text-rose-400 text-xs font-bold mb-2 tracking-widest">JOIN TARGET</div>
+                                    <div className="flex flex-wrap gap-2"><input value={targetId} onChange={handleIdChange} placeholder="TARGET ID" className="flex-1 min-w-[140px] bg-black/50 border border-rose-900/50 text-rose-200 px-4 py-3 text-center text-xl font-mono outline-none focus:border-rose-500"/><Button onClick={connect} variant="danger" className="flex-1 min-w-[80px]">JOIN</Button></div>
+                                </div>
+
+                                <div className="text-center">
+                                    <button onClick={() => setShowHostInfo(!showHostInfo)} className="text-xs text-cyan-500 underline hover:text-cyan-400 tracking-widest">
+                                        {showHostInfo ? 'CLOSE HOST MENU' : 'IDを発行してホストになる'}
+                                    </button>
+                                </div>
+
+                                {showHostInfo && (
+                                    <div className="cyber-box p-6 slide-in-left">
+                                        <div className="text-cyan-400 text-xs font-bold mb-2 tracking-widest">HOST UNIT</div>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 bg-black/50 border border-cyan-900/50 flex items-center justify-center text-2xl font-mono text-cyan-200 h-14">{myId || 'INIT...'}</div>
+                                            <Button onClick={copyId} variant="ghost" icon="copy" />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
 
                     {phase === 'vs' && (
-                        <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
+                        <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden scale-75 md:scale-100 origin-center">
                             <div className="absolute inset-0 vs-bg opacity-30"></div>
                             <div className="relative w-full h-full flex items-center justify-center">
                                 <div className="absolute left-0 top-1/4 w-full md:w-1/2 h-32 md:h-48 bg-cyan-900/30 border-r-4 border-cyan-500 transform skew-x-12 -ml-10 flex items-center justify-end pr-10 slide-in-left"><div className="text-right transform -skew-x-12"><div className="text-cyan-300 text-sm tracking-[0.5em] mb-2">CHALLENGER</div><div className="text-3xl md:text-5xl font-black text-white">{userName || 'YOU'}</div></div></div>
@@ -768,7 +803,7 @@
 
                     {(phase === 'topic_input' || phase === 'topic_wait') && <div className="flex flex-col h-full z-10 p-6 items-center justify-center space-y-8 bg-black/80">{(isMyTopicConfirmed && !isHost) || (isHost && isMyTopicConfirmed && !isOppTopicConfirmed) ? (<div className="text-center animate-pulse"><div className="text-2xl font-black text-cyan-400 mb-2">WAITING FOR RIVAL</div><div className="text-xs text-slate-500">お題決定待ち...</div></div>) : (<div className="w-full max-w-md space-y-6 animate-enter"><div className="flex justify-between items-end border-b border-cyan-900 pb-2"><h2 className="text-2xl font-black text-white">TOPIC PHASE</h2><div className="text-xl font-mono text-cyan-400">{displayTimer}s</div></div><div className="space-y-4"><CyberInput value={myTopic} onChange={e => setMyTopic(e.target.value)} placeholder="例：赤いもの" label="PROPOSED TOPIC"/><div className="flex gap-3"><Button onClick={() => setMyTopic(SAMPLE_TOPICS[Math.floor(Math.random()*SAMPLE_TOPICS.length)])} variant="ghost" className="flex-1 text-xs">RANDOM</Button><Button onClick={submitTopic} className="flex-[2]">CONFIRM</Button></div></div></div>)}</div>}
 
-                    {(phase === 'ng_input' || phase === 'ng_wait') && <div className="flex flex-col h-full z-10 p-4 bg-slate-950"><div className="flex-none pt-4 pb-2 text-center"><div className="text-xs text-slate-500 tracking-[0.5em] mb-1">MISSION START</div><div className="text-3xl md:text-4xl font-black text-white py-4 border-y border-cyan-900 bg-cyan-950/20">{selectedTopic?.text}</div></div>{phase === 'ng_wait' ? (<div className="flex-1 flex flex-col items-center justify-center space-y-4"><div className="w-16 h-16 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div><div className="text-rose-500 font-bold animate-pulse">DEPLOYING TRAPS...</div></div>) : (<div className="flex-1 overflow-y-auto py-6 flex flex-col items-center"><div className="w-full max-w-md space-y-6 animate-enter"><div className="flex justify-between items-end"><h2 className="text-xl font-black text-rose-500">TRAP PHASE</h2><div className="text-xl font-mono text-rose-400">{displayTimer}s</div></div><div className="space-y-4 p-4 border border-rose-900/50 rounded bg-rose-950/10"><CyberInput value={ngWords.high} onChange={e => setNgWords({...ngWords, high: toHiragana(e.target.value)})} placeholder="大ダメージ" label="3PT (HIGH)" color="rose"/><CyberInput value={ngWords.mid} onChange={e => setNgWords({...ngWords, mid: toHiragana(e.target.value)})} placeholder="中ダメージ" label="2PT (MID)" color="rose"/><CyberInput value={ngWords.low} onChange={e => setNgWords({...ngWords, low: toHiragana(e.target.value)})} placeholder="小ダメージ" label="1PT (LOW)" color="rose"/></div><Button onClick={submitNg} variant="danger" className="w-full py-4 text-lg">BATTLE START</Button></div></div>)}</div>}
+                    {(phase === 'ng_input' || phase === 'ng_wait') && <div className="flex flex-col h-full z-10 p-4 bg-slate-950"><div className="flex-none pt-4 pb-2 text-center"><div className="text-xs text-slate-500 tracking-[0.5em] mb-1">MISSION START</div><div className="text-3xl md:text-4xl font-black text-white py-4 border-y border-cyan-900 bg-cyan-950/20">{selectedTopic?.text}</div></div>{phase === 'ng_wait' ? (<div className="flex-1 flex flex-col items-center justify-center space-y-4"><div className="w-16 h-16 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div><div className="text-rose-500 font-bold animate-pulse">相手の設置を待機中...</div></div>) : (<div className="flex-1 overflow-y-auto py-6 flex flex-col items-center"><div className="w-full max-w-md space-y-6 animate-enter"><div className="flex justify-between items-end"><h2 className="text-xl font-black text-rose-500">TRAP PHASE</h2><div className="text-xl font-mono text-rose-400">{displayTimer}s</div></div><div className="space-y-4 p-4 border border-rose-900/50 rounded bg-rose-950/10"><CyberInput value={ngWords.high} onChange={e => setNgWords({...ngWords, high: toHiragana(e.target.value)})} placeholder="大ダメージ" label="3PT (HIGH)" color="rose"/><CyberInput value={ngWords.mid} onChange={e => setNgWords({...ngWords, mid: toHiragana(e.target.value)})} placeholder="中ダメージ" label="2PT (MID)" color="rose"/><CyberInput value={ngWords.low} onChange={e => setNgWords({...ngWords, low: toHiragana(e.target.value)})} placeholder="小ダメージ" label="1PT (LOW)" color="rose"/></div><Button onClick={submitNg} variant="danger" className="w-full py-4 text-lg">BATTLE START</Button></div></div>)}</div>}
 
                     {(phase === 'playing' || phase === 'result') && (
                         <div className="flex flex-col h-full z-10 bg-slate-900/50 relative">
