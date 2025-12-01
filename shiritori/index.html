@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NEON WORD BATTLE: STRATEGY</title>
+    <title>NEON WORD BATTLE: OVERDRIVE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -25,15 +25,15 @@
             font-family: 'Zen Maru Gothic', sans-serif;
             background-color: var(--bg-dark);
             color: #e0e0e0;
-            overflow: hidden; /* Body scroll lock */
+            overflow: hidden;
             touch-action: manipulation;
         }
 
         .app-container {
-            position: fixed; /* Force fixed layout relative to viewport */
+            position: fixed;
             inset: 0;
             width: 100vw;
-            height: 100dvh; /* Dynamic viewport height */
+            height: 100dvh;
             display: flex;
             flex-direction: column;
             background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%);
@@ -104,6 +104,24 @@
             animation: blur-scroll 0.1s infinite;
         }
 
+        /* Damage Shake */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        .shake-anim {
+            animation: shake 0.5s;
+        }
+
         /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #000; }
@@ -120,7 +138,7 @@
         const SAMPLE_TOPICS = ["アニメキャラ", "学校にあるもの", "コンビニの商品", "4文字の言葉", "緑色のもの", "歴史上の人物"];
         const MAX_HP = 5;
         const TIMER_SETUP = 60;
-        const TIMER_GAME = 60; // 30 -> 60に変更
+        const TIMER_GAME = 60;
 
         // --- UTILS ---
         const generateId = () => Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -154,13 +172,14 @@
             );
         };
 
-        const CyberInput = ({ value, onChange, placeholder, label, color="cyan" }) => (
+        const CyberInput = ({ value, onChange, placeholder, label, color="cyan", maxLength }) => (
             <div className="w-full relative group">
                 {label && <div className={`text-[10px] font-bold mb-1 tracking-widest ${color==='rose'?'text-rose-400':'text-cyan-400'}`}>{label}</div>}
                 <input
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
+                    maxLength={maxLength}
                     className={`cyber-input w-full px-4 py-3 text-lg font-bold ${color==='rose'?'text-rose-400 border-rose-900 focus:border-rose-500':'text-cyan-400'}`}
                 />
                 <div className={`absolute bottom-0 right-0 w-2 h-2 ${color==='rose'?'bg-rose-500':'bg-cyan-500'} opacity-50 group-focus-within:opacity-100`}></div>
@@ -176,10 +195,17 @@
             const [targetId, setTargetId] = useState('');
             const [isHost, setIsHost] = useState(false);
             
+            // User Data
+            const [userName, setUserName] = useState('');
+            const [oppName, setOppName] = useState('RIVAL');
+
             // Flow
-            const [phase, setPhase] = useState('lobby');
+            const [phase, setPhase] = useState('lobby'); // lobby, topic_input, topic_wait, roulette, ng_input, ng_wait, playing, result
             const [error, setError] = useState('');
             
+            // Damage Animation
+            const [damageAlert, setDamageAlert] = useState(null); // { amount, reason, target: 'me'|'opp' }
+
             // Data
             const [myTopic, setMyTopic] = useState('');
             const [oppTopic, setOppTopic] = useState('');
@@ -200,13 +226,24 @@
             
             const [timer, setTimer] = useState(0);
             
-            const stateRef = useRef({ phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady });
-            const connRef = useRef(null); // Ref for connection to prevent stale closures
+            const stateRef = useRef({ phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName });
+            const connRef = useRef(null); 
             const scrollRef = useRef(null);
 
             useEffect(() => {
-                stateRef.current = { phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady };
-            }, [phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady]);
+                stateRef.current = { phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName };
+            }, [phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName]);
+
+            // Load User Name
+            useEffect(() => {
+                const savedName = localStorage.getItem('nwb_username');
+                if(savedName) setUserName(savedName);
+            }, []);
+
+            // Save User Name
+            useEffect(() => {
+                if(userName) localStorage.setItem('nwb_username', userName);
+            }, [userName]);
 
             // Init Peer
             useEffect(() => {
@@ -243,9 +280,11 @@
 
             const setupConn = (c, amHost) => {
                 setConn(c);
-                connRef.current = c; // Update Ref
+                connRef.current = c;
                 setIsHost(amHost);
                 c.on('open', () => {
+                    // Send my name first
+                    c.send({ type: 'NAME_SYNC', name: stateRef.current.userName || 'PLAYER' });
                     setPhase('topic_input');
                     setTimer(TIMER_SETUP);
                 });
@@ -257,7 +296,6 @@
             };
 
             const send = (data) => {
-                // Use Ref to ensure we always have the current connection object, even inside closures
                 if(connRef.current && connRef.current.open) {
                     connRef.current.send(data);
                 }
@@ -267,6 +305,18 @@
             const handleData = (data) => {
                 const s = stateRef.current;
                 switch(data.type) {
+                    case 'NAME_SYNC':
+                        setOppName(data.name || 'RIVAL');
+                        // If I am guest connecting to host, I should also send my name if I haven't
+                        if(!s.isHost) {
+                            // Already sent in open, but double check logic if needed
+                        } else {
+                            // Host received name, host should send name back if not already done?
+                            // 'open' event handles initial send.
+                            send({ type: 'NAME_SYNC', name: s.userName || 'PLAYER' });
+                        }
+                        break;
+
                     case 'TOPIC_SUBMIT':
                         if(s.isHost) {
                             setOppTopic(data.topic);
@@ -275,8 +325,7 @@
                         break;
 
                     case 'ROULETTE_START':
-                        // Guest starts roulette
-                        setOppTopic(data.hostTopic); // Sync
+                        setOppTopic(data.hostTopic);
                         playRouletteAnimation(data.candidates, data.winner);
                         break;
 
@@ -312,7 +361,7 @@
                 }
             };
 
-            // --- LOGIC: TOPIC ---
+            // --- LOGIC ---
             const submitTopic = () => {
                 if(!myTopic) return showError("お題を入力せよ");
                 
@@ -335,11 +384,7 @@
                     : { text: guestT, owner: 'guest' };
                 
                 const candidates = [hostT, guestT];
-                
-                // Host Animation
                 playRouletteAnimation(candidates, winner);
-
-                // Notify Guest
                 send({ type: 'ROULETTE_START', candidates, winner, hostTopic: hostT });
             };
 
@@ -348,32 +393,27 @@
                 setRouletteData({ candidates, winner });
                 
                 let count = 0;
-                let maxCount = 30; // 3 seconds approx
+                let maxCount = 30;
                 let speed = 50;
 
                 const spin = () => {
-                    // Flash random candidate
                     setRouletteDisplay(candidates[count % 2]);
                     count++;
-                    
                     if(count < maxCount) {
-                        // Decelerate
                         if(count > 20) speed += 20;
                         setTimeout(spin, speed);
                     } else {
-                        // Finish
                         setRouletteDisplay(winner.text);
                         setSelectedTopic(winner);
                         setTimeout(() => {
                             setPhase('ng_input');
                             setTimer(TIMER_SETUP);
-                        }, 2000); // Show winner for 2 seconds
+                        }, 2000);
                     }
                 };
                 spin();
             };
 
-            // --- LOGIC: NG PHASE ---
             const submitNg = () => {
                 if(!ngWords.high) return showError("3pt NGワードは必須だ");
                 setPhase('ng_wait');
@@ -390,7 +430,6 @@
                 setTimer(TIMER_GAME);
             };
 
-            // --- LOGIC: GAMEPLAY ---
             const submitWord = () => {
                 if(!input) return;
                 const hira = toHiragana(input);
@@ -417,8 +456,7 @@
                 let dmg = 0;
                 let reason = '';
                 
-                // --- TRAP CHECK LOGIC ---
-                // I am the receiver. I check if the word sent by opponent hits MY traps.
+                // Trap Check
                 if(word === s.ngWords.high) { dmg = 3; reason = 'NGワード(3pt)踏破!'; }
                 else if(word === s.ngWords.mid) { dmg = 2; reason = 'NGワード(2pt)踏破!'; }
                 else if(word === s.ngWords.low) { dmg = 1; reason = 'NGワード(1pt)踏破!'; }
@@ -429,7 +467,6 @@
                     // Update MY view of Opponent
                     applyDamage('opp', dmg, reason);
                     // Tell Opponent they took damage
-                    // FIX: This send was failing because conn was stale in closure
                     send({ type: 'DAMAGE_REPORT', amount: dmg, reason });
                 }
 
@@ -462,18 +499,46 @@
                 }
             }, [timer, phase, turn]);
 
+            // --- DAMAGE & GAME OVER ---
             const applyDamage = (target, amount, msg) => {
-                if(target === 'me') setMyHp(h => Math.max(0, h - amount));
-                else setOppHp(h => Math.max(0, h - amount));
+                // Show Animation Overlay
+                setDamageAlert({ target, amount, reason: msg });
+                
+                // Hide Overlay after 2 seconds
+                setTimeout(() => setDamageAlert(null), 2000);
+
+                let currentHp, setHp;
+                if(target === 'me') { currentHp = myHp; setHp = setMyHp; }
+                else { currentHp = oppHp; setHp = setOppHp; }
+
+                const nextHp = Math.max(0, currentHp - amount);
+                setHp(nextHp);
                 setHistory(p => [...p, { type: 'alert', word: `⚠️ ${msg}` }]);
+
+                // Check Death
+                if(nextHp <= 0) {
+                    // Delay game over result screen to show damage animation first
+                    setTimeout(() => {
+                        setPhase('result');
+                    }, 2500);
+                }
             };
 
             const showError = (msg) => { setError(msg); setTimeout(() => setError(''), 3000); };
+            
+            const handleRematch = () => {
+                send({ type: 'REMATCH' });
+                resetGame();
+            };
+
             const resetGame = () => {
-                setPhase('lobby'); setMyTopic(''); setOppTopic(''); setSelectedTopic(null);
+                setPhase('lobby'); 
+                setMyTopic(''); setOppTopic(''); setSelectedTopic(null);
                 setNgWords({ high:'', mid:'', low:'' }); setOppNgReady(false);
                 setHistory([]); setMyHp(MAX_HP); setOppHp(MAX_HP);
+                setDamageAlert(null);
             };
+
             const copyId = () => {
                  const t = document.createElement("textarea"); t.value = myId;
                  t.style.position="fixed"; t.style.left="-9999px"; document.body.appendChild(t);
@@ -482,8 +547,7 @@
             };
 
             const isMyTurn = turn === (isHost?'host':'guest');
-            const isGameOver = myHp <= 0 || oppHp <= 0;
-            const isWin = oppHp <= 0 && myHp > 0;
+            // phase 'result' is now the source of truth for game over screen
 
             // --- RENDER ---
             return (
@@ -498,9 +562,27 @@
                         </div>
                     )}
 
+                    {/* DAMAGE OVERLAY */}
+                    {damageAlert && (
+                        <div className="fixed inset-0 z-[90] flex items-center justify-center pointer-events-none">
+                            <div className="absolute inset-0 bg-rose-900/40 animate-pulse"></div>
+                            <div className="relative z-10 text-center shake-anim">
+                                <div className="text-8xl font-black text-rose-500 drop-shadow-[0_0_10px_rgba(255,0,0,0.8)]" style={{fontFamily: 'Black Ops One'}}>
+                                    -{damageAlert.amount}
+                                </div>
+                                <div className="text-2xl font-bold text-white bg-black/80 px-4 py-2 mt-2 border border-rose-500">
+                                    {damageAlert.reason}
+                                </div>
+                                <div className="text-xl font-bold text-rose-300 mt-2 tracking-widest">
+                                    {damageAlert.target === 'me' ? 'CRITICAL ERROR DETECTED' : 'TARGET DAMAGED'}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* === LOBBY === */}
                     {phase === 'lobby' && (
-                        <div className="flex flex-col items-center justify-center h-full p-8 z-10 space-y-12 overflow-y-auto">
+                        <div className="flex flex-col items-center justify-center h-full p-8 z-10 space-y-8 overflow-y-auto">
                             <div className="text-center relative">
                                 <h1 className="text-6xl md:text-8xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-t from-cyan-600 to-white glitch-text" style={{fontFamily: 'Black Ops One'}}>
                                     STRATEGY
@@ -509,6 +591,19 @@
                             </div>
 
                             <div className="w-full max-w-sm space-y-6">
+                                <div className="cyber-box p-6">
+                                    <div className="text-cyan-400 text-xs font-bold mb-4 tracking-widest border-b border-cyan-900 pb-2">PLAYER SETUP</div>
+                                    <div className="space-y-4">
+                                        <CyberInput 
+                                            value={userName}
+                                            onChange={(e) => setUserName(e.target.value)}
+                                            placeholder="ENTER NAME"
+                                            label="CODENAME (MAX 8)"
+                                            maxLength={8}
+                                        />
+                                    </div>
+                                </div>
+
                                 <div className="cyber-box p-6">
                                     <div className="text-cyan-400 text-xs font-bold mb-2 tracking-widest">HOST UNIT</div>
                                     <div className="flex gap-2">
@@ -521,7 +616,6 @@
                                 
                                 <div className="cyber-box p-6 !border-rose-500/50">
                                     <div className="text-rose-400 text-xs font-bold mb-2 tracking-widest">JOIN TARGET</div>
-                                    {/* FIX: Mobile Flex Wrap */}
                                     <div className="flex flex-wrap gap-2">
                                         <input 
                                             value={targetId}
@@ -617,12 +711,12 @@
                     )}
 
                     {/* === GAMEPLAY === */}
-                    {(phase === 'playing' || isGameOver) && (
+                    {(phase === 'playing' || phase === 'result') && (
                         <div className="flex flex-col h-full z-10 bg-slate-900/50 relative">
                             {/* FIXED HEADER */}
                             <div className="absolute top-0 left-0 right-0 z-30 p-4 bg-slate-900 border-b border-slate-700 shadow-xl flex justify-between items-end">
                                 <div className="w-1/3">
-                                    <div className="text-[10px] text-rose-500 font-bold mb-1">RIVAL</div>
+                                    <div className="text-[10px] text-rose-500 font-bold mb-1 truncate">{oppName}</div>
                                     <div className="flex gap-1 h-2">
                                         {[...Array(MAX_HP)].map((_,i) => (
                                             <div key={i} className={`flex-1 rounded-sm ${i<oppHp?'bg-rose-500 shadow-[0_0_5px_#f43f5e]':'bg-slate-800'}`}></div>
@@ -633,7 +727,7 @@
                                     <div className={`text-4xl font-black ${timer<=5?'text-rose-500 animate-pulse':'text-white'}`} style={{fontFamily: 'Black Ops One'}}>{timer}</div>
                                 </div>
                                 <div className="w-1/3 text-right">
-                                    <div className="text-[10px] text-cyan-400 font-bold mb-1">YOU</div>
+                                    <div className="text-[10px] text-cyan-400 font-bold mb-1 truncate">{userName || 'YOU'}</div>
                                     <div className="flex gap-1 h-2 justify-end">
                                         {[...Array(MAX_HP)].map((_,i) => (
                                             <div key={i} className={`flex-1 rounded-sm ${i<myHp?'bg-cyan-400 shadow-[0_0_5px_#06b6d4]':'bg-slate-800'}`}></div>
@@ -642,7 +736,6 @@
                                 </div>
                             </div>
                             
-                            {/* SPACER for Fixed Header */}
                             <div className="h-24 flex-none"></div>
 
                             {/* TOPIC BANNER */}
@@ -654,7 +747,7 @@
                             <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
                                 {history.map((h, i) => {
                                     if(h.type==='alert') return (
-                                        <div key={i} className="text-center text-[10px] text-rose-400 font-bold bg-rose-950/50 py-1 rounded border border-rose-900">{h.word}</div>
+                                        <div key={i} className="text-center text-[10px] text-rose-400 font-bold bg-rose-950/50 py-1 rounded border border-rose-900 animate-pulse">{h.word}</div>
                                     );
                                     const isMine = h.owner === (isHost?'host':'guest');
                                     const isSys = h.owner === 'system';
@@ -663,7 +756,7 @@
                                             {isSys ? (
                                                 <span className="text-xs text-slate-600 font-mono">- {h.word} -</span>
                                             ) : (
-                                                <div className={`max-w-[80%] px-4 py-2 rounded font-bold ${isMine?'bg-cyan-900/80 text-cyan-100 border-l-4 border-cyan-400':'bg-slate-800 text-slate-300 border-r-4 border-slate-600'} ${h.damage>0?'animate-pulse !border-rose-500 !text-rose-400':''}`}>
+                                                <div className={`max-w-[80%] px-4 py-2 rounded font-bold ${isMine?'bg-cyan-900/80 text-cyan-100 border-l-4 border-cyan-400':'bg-slate-800 text-slate-300 border-r-4 border-slate-600'} ${h.damage>0?'!border-rose-500 !text-rose-400 shake-anim':''}`}>
                                                     {h.word}
                                                     {h.damage>0 && <div className="text-[10px] mt-1 text-rose-500">💥 HIT -{h.damage}</div>}
                                                 </div>
@@ -682,22 +775,30 @@
                                 <div className="flex gap-2">
                                     <input 
                                         value={input} onChange={e=>setInput(e.target.value)}
-                                        onKeyDown={e=>e.key==='Enter'&&isMyTurn&&submitWord()}
-                                        disabled={!isMyTurn || isGameOver}
+                                        onKeyDown={e=>e.key==='Enter'&&isMyTurn&&phase==='playing'&&submitWord()}
+                                        disabled={!isMyTurn || phase !== 'playing'}
                                         className="flex-1 bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded outline-none focus:border-cyan-500 transition-colors"
                                         placeholder="入力..."
                                     />
-                                    <Button onClick={submitWord} disabled={!isMyTurn||!input} icon="send" className="!px-4" />
+                                    <Button onClick={submitWord} disabled={!isMyTurn||!input||phase!=='playing'} icon="send" className="!px-4" />
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* === GAME OVER === */}
-                    {isGameOver && (
-                        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur">
-                            <h1 className={`text-6xl font-black italic mb-4 ${isWin?'text-cyan-400':'text-rose-500'}`}>{isWin?'VICTORY':'DEFEAT'}</h1>
-                            <Button onClick={() => send({type:'REMATCH'})} className="px-12 py-4 text-xl">REMATCH</Button>
+                    {/* === GAME OVER RESULT SCREEN === */}
+                    {phase === 'result' && (
+                        <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 backdrop-blur animate-enter">
+                            <h1 className={`text-6xl font-black italic mb-4 glitch-text ${myHp > 0 ? 'text-cyan-400' : 'text-rose-500'}`}>
+                                {myHp > 0 ? 'VICTORY' : 'DEFEAT'}
+                            </h1>
+                            <div className="text-center mb-8">
+                                <div className="text-xs text-slate-500 tracking-widest mb-1">FINAL STATUS</div>
+                                <div className="text-2xl font-mono text-white">
+                                    {userName} HP: {myHp} / {oppName} HP: {oppHp}
+                                </div>
+                            </div>
+                            <Button onClick={handleRematch} className="px-12 py-4 text-xl">REMATCH</Button>
                         </div>
                     )}
                 </div>
