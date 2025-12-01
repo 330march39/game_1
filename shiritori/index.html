@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NEON WORD BATTLE: V9 FINAL TUNE</title>
+    <title>NEON WORD BATTLE: V10 PERFECT</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -90,7 +90,7 @@
             outline: none;
         }
 
-        /* --- VS ANIMATIONS --- */
+        /* --- ANIMATIONS --- */
         .vs-bg {
             background: repeating-linear-gradient(90deg, transparent 0, transparent 50px, rgba(0, 240, 255, 0.1) 50px, rgba(0, 240, 255, 0.1) 51px);
             animation: slide-bg 10s linear infinite;
@@ -106,64 +106,17 @@
         .slam-in { animation: slamIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.8s forwards; opacity: 0; transform: scale(3); }
         @keyframes slamIn { to { opacity: 1; transform: scale(1); } }
 
-        /* Coin & Shake */
-        .coin-container {
-            width: 12rem;
-            height: 12rem;
-            position: relative;
-            transform-style: preserve-3d;
-        }
+        /* Coin */
+        .coin-container { width: 12rem; height: 12rem; position: relative; transform-style: preserve-3d; }
+        .coin-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border-radius: 9999px; font-weight: 900; font-size: 2.25rem; border-width: 4px; }
+        .coin-front { border-color: var(--c-primary); background-color: rgba(0, 30, 40, 0.8); color: var(--c-primary); }
+        .coin-back { border-color: var(--c-secondary); background-color: rgba(40, 0, 10, 0.8); color: var(--c-secondary); transform: rotateY(180deg); }
+        @keyframes spin-to-you { 0% { transform: rotateY(0); } 100% { transform: rotateY(3600deg); } }
+        @keyframes spin-to-rival { 0% { transform: rotateY(0); } 100% { transform: rotateY(3780deg); } }
+        .animate-spin-you { animation: spin-to-you 4s cubic-bezier(0.1, 0.7, 0.1, 1) forwards; }
+        .animate-spin-rival { animation: spin-to-rival 4s cubic-bezier(0.1, 0.7, 0.1, 1) forwards; }
         
-        .coin-face {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 9999px;
-            font-weight: 900;
-            font-size: 2.25rem;
-            border-width: 4px;
-        }
-
-        .coin-front {
-            /* YOU */
-            border-color: var(--c-primary);
-            background-color: rgba(0, 30, 40, 0.8);
-            color: var(--c-primary);
-        }
-
-        .coin-back {
-            /* RIVAL */
-            border-color: var(--c-secondary);
-            background-color: rgba(40, 0, 10, 0.8);
-            color: var(--c-secondary);
-            transform: rotateY(180deg);
-        }
-
-        /* 0deg = YOU (Front)
-           180deg = RIVAL (Back)
-           3600deg = YOU (10 spins)
-           3780deg = RIVAL (10.5 spins)
-        */
-        @keyframes spin-to-you {
-            0% { transform: rotateY(0); }
-            100% { transform: rotateY(3600deg); }
-        }
-        @keyframes spin-to-rival {
-            0% { transform: rotateY(0); }
-            100% { transform: rotateY(3780deg); }
-        }
-
-        .animate-spin-you {
-            animation: spin-to-you 4s cubic-bezier(0.1, 0.7, 0.1, 1) forwards;
-        }
-        .animate-spin-rival {
-            animation: spin-to-rival 4s cubic-bezier(0.1, 0.7, 0.1, 1) forwards;
-        }
-        
+        /* Shake */
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
@@ -173,6 +126,18 @@
 
         @keyframes pulse-red { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
         .pulse-text { animation: pulse-red 1.5s infinite; }
+
+        /* Typing Dots */
+        @keyframes typing-bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+        .typing-dot {
+            width: 4px; height: 4px; background-color: currentColor; border-radius: 50%;
+            animation: typing-bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
 
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #000; }
@@ -192,6 +157,7 @@
         const TIMER_GAME = 60; 
         const DISCONNECT_TIMEOUT = 30000;
         const CONNECTION_WARNING_TIMEOUT = 3000;
+        const TYPING_TIMEOUT = 3000; // Reset typing status after 3s of inactivity
         
         const HIRAGANA_CHARS = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわがぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ";
         const getRandomChar = () => HIRAGANA_CHARS[Math.floor(Math.random() * HIRAGANA_CHARS.length)];
@@ -227,10 +193,10 @@
             );
         };
 
-        const CyberInput = ({ value, onChange, placeholder, label, color="cyan", maxLength, type="text" }) => (
+        const CyberInput = ({ value, onChange, placeholder, label, color="cyan", maxLength, type="text", onFocus, onBlur }) => (
             <div className="w-full relative group">
                 {label && <div className={`text-[10px] font-bold mb-1 tracking-widest ${color==='rose'?'text-rose-400':'text-cyan-400'}`}>{label}</div>}
-                <input type={type} value={value} onChange={onChange} placeholder={placeholder} maxLength={maxLength}
+                <input type={type} value={value} onChange={onChange} onFocus={onFocus} onBlur={onBlur} placeholder={placeholder} maxLength={maxLength}
                     className={`cyber-input w-full px-4 py-3 text-lg font-bold ${color==='rose'?'text-rose-400 border-rose-900 focus:border-rose-500':'text-cyan-400'}`} />
                 <div className={`absolute bottom-0 right-0 w-2 h-2 ${color==='rose'?'bg-rose-500':'bg-cyan-500'} opacity-50 group-focus-within:opacity-100`}></div>
             </div>
@@ -257,6 +223,7 @@
             // Connection Health
             const [lastActiveTime, setLastActiveTime] = useState(Date.now());
             const [isUnstable, setIsUnstable] = useState(false);
+            const [isOpponentTyping, setIsOpponentTyping] = useState(false); // Typing State
 
             // Data
             const [myTopic, setMyTopic] = useState('');
@@ -285,6 +252,7 @@
             const [phaseStartTime, setPhaseStartTime] = useState(0); 
             const [turnStartTime, setTurnStartTime] = useState(0); 
             
+            // Internal State Refs
             const stateRef = useRef({ 
                 phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName,
                 turnStartTime, phaseStartTime, lastActiveTime, isMyTopicConfirmed, isOppTopicConfirmed, initialChar
@@ -292,6 +260,8 @@
             const connRef = useRef(null); 
             const scrollRef = useRef(null);
             const loopRef = useRef(null);
+            const typingTimeoutRef = useRef(null);
+            const processingTimeout = useRef(false); // Lock for preventing double timeouts
 
             // Sync References
             useEffect(() => {
@@ -316,7 +286,7 @@
             }, []);
 
             useEffect(() => { if(window.lucide) window.lucide.createIcons(); });
-            useEffect(() => { if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [history, isUnstable]);
+            useEffect(() => { if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [history, isUnstable, isOpponentTyping]);
 
             // Heartbeat
             useEffect(() => {
@@ -333,7 +303,7 @@
                         else if (elapsed <= CONNECTION_WARNING_TIMEOUT && isUnstable) setIsUnstable(false);
                         
                         if (stateRef.current.phase === 'playing' && elapsed > DISCONNECT_TIMEOUT) {
-                            applyDamage('opp', 5, '通信途絶 (VICTORY)'); // Disconnect Damage -5
+                            applyDamage('opp', 5, '通信途絶 (VICTORY)');
                             clearInterval(heartbeat);
                         }
                     }
@@ -345,6 +315,12 @@
             useEffect(() => {
                 const loop = () => {
                     const s = stateRef.current;
+                    // If timeout processing is locked, skip updates
+                    if (processingTimeout.current) {
+                        loopRef.current = requestAnimationFrame(loop);
+                        return;
+                    }
+
                     const now = Date.now();
                     let targetTime = 0;
                     let duration = 0;
@@ -402,6 +378,14 @@
 
                 switch(data.type) {
                     case 'PING': break;
+                    case 'TYPING':
+                        setIsOpponentTyping(data.isTyping);
+                        // Auto-clear typing status after safety timeout
+                        if(data.isTyping) {
+                            if(typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                            typingTimeoutRef.current = setTimeout(() => setIsOpponentTyping(false), TYPING_TIMEOUT);
+                        }
+                        break;
                     case 'REQUEST_SYNC':
                         send({ 
                             type: 'SYNC_FULL', 
@@ -410,6 +394,7 @@
                         });
                         break;
                     case 'SYNC_FULL':
+                        // Enforce lowest HP rule to prevent drift
                         setOppHp(prev => Math.min(prev, data.myHp));
                         setMyHp(prev => Math.min(prev, data.oppHp));
                         setTurn(data.turn); setTurnStartTime(data.turnStartTime);
@@ -439,25 +424,41 @@
                         setTimeout(() => { setPhase('playing'); setTurn(data.result); setHistory([]); }, 4000);
                         break;
                     case 'START_GAME': setPhase('playing'); setTurnStartTime(data.startTime); break;
-                    case 'MOVE': receiveMove(data.word); break;
+                    case 'MOVE': 
+                        setIsOpponentTyping(false); // Stop typing anim immediately on move
+                        receiveMove(data.word); 
+                        break;
                     case 'TURN_CHANGE':
+                        // Unlock timeout logic if it was locked
+                        processingTimeout.current = false;
                         setTurn(data.nextTurn); setTurnStartTime(data.startTime);
-                        setMyHp(prev => Math.min(prev, data.oppHp)); setOppHp(prev => Math.min(prev, data.myHp));
+                        // Sync HP on turn change to keep consistent
+                        setMyHp(data.oppHp); setOppHp(data.myHp);
                         break;
                     case 'DAMAGE_REPORT':
                         applyDamage('me', data.amount, data.reason);
-                        if(data.remainingHp !== undefined) setMyHp(prev => Math.min(prev, data.remainingHp));
+                        if(data.remainingHp !== undefined) setMyHp(data.remainingHp); // STRICT SYNC
                         break;
                     case 'TIMEOUT_PENALTY':
+                        // Unlock processing
+                        processingTimeout.current = false;
                         setMyHp(data.oppHp); setOppHp(data.myHp);
                         setTurn(data.nextTurn); setTurnStartTime(data.startTime);
-                        const victimOwner = data.victim === 'host' ? (s.isHost ? 'me' : 'opp') : (s.isHost ? 'opp' : 'me');
                         setHistory(prev => [...prev, { type: 'timeout', owner: data.victim }]);
+                        // Visual damage locally
+                        const victimOwner = data.victim === 'host' ? (s.isHost ? 'me' : 'opp') : (s.isHost ? 'opp' : 'me');
                         applyDamage(victimOwner === 'me' ? 'me' : 'opp', 1, '時間切れ');
                         break;
                     case 'REMATCH': resetGame(); break;
                 }
             };
+
+            // --- TYPING LOGIC ---
+            const handleInputChange = (e) => {
+                setInput(e.target.value);
+                send({ type: 'TYPING', isTyping: true });
+            };
+            const handleInputBlur = () => send({ type: 'TYPING', isTyping: false });
 
             // --- GAME LOGIC ---
             const submitTopic = () => {
@@ -493,14 +494,12 @@
                 if([ngWords.high, ngWords.mid, ngWords.low].some(w => w.slice(-1) === 'ん')) {
                     return showError("「ん」で終わる言葉はNGに設定できません");
                 }
-                // 3pt NG is NO LONGER required
                 setPhase('ng_wait'); send({ type: 'NG_READY' });
                 if(isHost && oppNgReady) startCoinToss();
             };
 
             const forceStartGame = () => {
                 if (stateRef.current.phase === 'ng_input') {
-                    // Timeout: Set empty words instead of auto-fill
                     setNgWords({high:'', mid:'', low:''}); 
                     setPhase('ng_wait'); send({ type: 'FORCE_NG_COMPLETE' }); startCoinToss();
                 }
@@ -517,25 +516,35 @@
                 }, 4000);
             };
 
+            // Unified Timeout Handler (Host Authority)
             const handleTimeout = () => {
+                // LOCK to prevent double execution
+                if (processingTimeout.current) return;
+                processingTimeout.current = true;
+
                 const s = stateRef.current;
                 const damage = 1;
                 const victim = s.turn; 
                 let newHostHp = s.isHost ? s.myHp : s.oppHp;
                 let newGuestHp = s.isHost ? s.oppHp : s.myHp;
 
+                // Calc Logic
                 if (victim === 'host') newHostHp = Math.max(0, newHostHp - damage);
                 else newGuestHp = Math.max(0, newGuestHp - damage);
 
                 const nextTurn = s.turn === 'host' ? 'guest' : 'host';
                 const now = Date.now();
 
+                // Apply locally immediately
                 if (s.isHost) {
                      if(victim === 'host') applyDamage('me', damage, '時間切れ');
                      else applyDamage('opp', damage, '時間切れ');
                 }
 
                 setHistory(prev => [...prev, { type: 'timeout', owner: victim }]);
+                
+                // Do NOT setTurn yet locally, wait for sync to ensure atomic update? 
+                // Or set locally to feel responsive. Set locally is better.
                 setTurn(nextTurn);
                 setTurnStartTime(now);
                 
@@ -637,6 +646,7 @@
                 setIsMyTopicConfirmed(false); setIsOppTopicConfirmed(false);
                 setHistory([]); setMyHp(MAX_HP); setOppHp(MAX_HP); setDamageAlert(null);
                 setTurnStartTime(0); setPhaseStartTime(0); setIsUnstable(false); setInitialChar('');
+                setIsOpponentTyping(false); processingTimeout.current = false;
             };
             const copyId = () => {
                  const t = document.createElement("textarea"); t.value = myId;
@@ -665,7 +675,7 @@
                         </div>
                     )}
 
-                    {/* LOBBY */}
+                    {/* PHASE RENDERING */}
                     {phase === 'lobby' && (
                         <div className="flex flex-col items-center justify-center h-full p-8 z-10 space-y-8 overflow-y-auto">
                             <div className="text-center relative"><h1 className="text-6xl md:text-8xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-t from-cyan-600 to-white glitch-text" style={{fontFamily: 'Black Ops One'}}>STRATEGY</h1><p className="text-cyan-500 tracking-[1em] text-xs mt-2 font-bold">NEON WORD BATTLE</p></div>
@@ -677,26 +687,19 @@
                         </div>
                     )}
 
-                    {/* VS SCREEN (RESPONSIVE) */}
                     {phase === 'vs' && (
                         <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden scale-75 md:scale-100 origin-center">
                             <div className="absolute inset-0 vs-bg opacity-30"></div>
                             <div className="relative w-full h-full flex items-center justify-center">
-                                <div className="absolute left-0 top-1/4 w-full md:w-1/2 h-32 md:h-48 bg-cyan-900/30 border-r-4 border-cyan-500 transform skew-x-12 -ml-10 flex items-center justify-end pr-10 slide-in-left">
-                                    <div className="text-right transform -skew-x-12"><div className="text-cyan-300 text-sm tracking-[0.5em] mb-2">CHALLENGER</div><div className="text-3xl md:text-5xl font-black text-white">{userName || 'YOU'}</div></div>
-                                </div>
-                                <div className="absolute right-0 bottom-1/4 w-full md:w-1/2 h-32 md:h-48 bg-rose-900/30 border-l-4 border-rose-500 transform skew-x-12 -mr-10 flex items-center justify-start pl-10 slide-in-right">
-                                    <div className="text-left transform -skew-x-12"><div className="text-rose-300 text-sm tracking-[0.5em] mb-2">OPPONENT</div><div className="text-3xl md:text-5xl font-black text-white">{oppName || 'RIVAL'}</div></div>
-                                </div>
+                                <div className="absolute left-0 top-1/4 w-full md:w-1/2 h-32 md:h-48 bg-cyan-900/30 border-r-4 border-cyan-500 transform skew-x-12 -ml-10 flex items-center justify-end pr-10 slide-in-left"><div className="text-right transform -skew-x-12"><div className="text-cyan-300 text-sm tracking-[0.5em] mb-2">CHALLENGER</div><div className="text-3xl md:text-5xl font-black text-white">{userName || 'YOU'}</div></div></div>
+                                <div className="absolute right-0 bottom-1/4 w-full md:w-1/2 h-32 md:h-48 bg-rose-900/30 border-l-4 border-rose-500 transform skew-x-12 -mr-10 flex items-center justify-start pl-10 slide-in-right"><div className="text-left transform -skew-x-12"><div className="text-rose-300 text-sm tracking-[0.5em] mb-2">OPPONENT</div><div className="text-3xl md:text-5xl font-black text-white">{oppName || 'RIVAL'}</div></div></div>
                                 <div className="z-10 text-9xl font-black italic text-transparent bg-clip-text bg-gradient-to-t from-white to-slate-400 drop-shadow-[0_0_25px_rgba(255,255,255,0.8)] slam-in" style={{fontFamily: 'Black Ops One'}}>VS</div>
                             </div>
-                            <div className="absolute bottom-10 text-xs tracking-[1em] text-slate-500 animate-pulse">NEURAL LINK ESTABLISHED</div>
                         </div>
                     )}
 
                     {phase === 'roulette' && <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center space-y-8"><div className="text-cyan-500 text-sm tracking-[0.5em] animate-pulse">DECIDING TOPIC...</div><div className="text-5xl md:text-7xl font-black text-white p-4 border-y-4 border-cyan-500 w-full text-center bg-cyan-900/20 roulette-anim glitch-text">{rouletteDisplay}</div></div>}
                     
-                    {/* COIN TOSS (3D FIXED) */}
                     {phase === 'coin' && (
                         <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center">
                             <div className="text-xs tracking-[0.5em] text-cyan-400 mb-8">DECIDING FIRST ATTACKER</div>
@@ -710,7 +713,7 @@
 
                     {(phase === 'topic_input' || phase === 'topic_wait') && <div className="flex flex-col h-full z-10 p-6 items-center justify-center space-y-8 bg-black/80">{(isMyTopicConfirmed && !isHost) || (isHost && isMyTopicConfirmed && !isOppTopicConfirmed) ? (<div className="text-center animate-pulse"><div className="text-2xl font-black text-cyan-400 mb-2">WAITING FOR RIVAL</div><div className="text-xs text-slate-500">お題決定待ち...</div></div>) : (<div className="w-full max-w-md space-y-6 animate-enter"><div className="flex justify-between items-end border-b border-cyan-900 pb-2"><h2 className="text-2xl font-black text-white">TOPIC PHASE</h2><div className="text-xl font-mono text-cyan-400">{displayTimer}s</div></div><div className="space-y-4"><CyberInput value={myTopic} onChange={e => setMyTopic(e.target.value)} placeholder="例：赤いもの" label="PROPOSED TOPIC"/><div className="flex gap-3"><Button onClick={() => setMyTopic(SAMPLE_TOPICS[Math.floor(Math.random()*SAMPLE_TOPICS.length)])} variant="ghost" className="flex-1 text-xs">RANDOM</Button><Button onClick={submitTopic} className="flex-[2]">CONFIRM</Button></div></div></div>)}</div>}
 
-                    {(phase === 'ng_input' || phase === 'ng_wait') && <div className="flex flex-col h-full z-10 p-4 bg-slate-950"><div className="flex-none pt-4 pb-2 text-center"><div className="text-xs text-slate-500 tracking-[0.5em] mb-1">MISSION START</div><div className="text-3xl md:text-4xl font-black text-white py-4 border-y border-cyan-900 bg-cyan-950/20">{selectedTopic?.text}</div></div>{phase === 'ng_wait' ? (<div className="flex-1 flex flex-col items-center justify-center space-y-4"><div className="w-16 h-16 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div><div className="text-rose-500 font-bold animate-pulse">DEPLOYING TRAPS...</div></div>) : (<div className="flex-1 overflow-y-auto py-6 flex flex-col items-center"><div className="w-full max-w-md space-y-6 animate-enter"><div className="flex justify-between items-end"><h2 className="text-xl font-black text-rose-500">TRAP PHASE</h2><div className="text-xl font-mono text-rose-400">{displayTimer}s</div></div><div className="space-y-4 p-4 border border-rose-900/50 rounded bg-rose-950/10"><CyberInput value={ngWords.high} onChange={e => setNgWords({...ngWords, high: toHiragana(e.target.value)})} placeholder="大ダメージ (任意)" label="3PT (HIGH)" color="rose"/><CyberInput value={ngWords.mid} onChange={e => setNgWords({...ngWords, mid: toHiragana(e.target.value)})} placeholder="中ダメージ" label="2PT (MID)" color="rose"/><CyberInput value={ngWords.low} onChange={e => setNgWords({...ngWords, low: toHiragana(e.target.value)})} placeholder="小ダメージ" label="1PT (LOW)" color="rose"/></div><Button onClick={submitNg} variant="danger" className="w-full py-4 text-lg">BATTLE START</Button></div></div>)}</div>}
+                    {(phase === 'ng_input' || phase === 'ng_wait') && <div className="flex flex-col h-full z-10 p-4 bg-slate-950"><div className="flex-none pt-4 pb-2 text-center"><div className="text-xs text-slate-500 tracking-[0.5em] mb-1">MISSION START</div><div className="text-3xl md:text-4xl font-black text-white py-4 border-y border-cyan-900 bg-cyan-950/20">{selectedTopic?.text}</div></div>{phase === 'ng_wait' ? (<div className="flex-1 flex flex-col items-center justify-center space-y-4"><div className="w-16 h-16 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div><div className="text-rose-500 font-bold animate-pulse">DEPLOYING TRAPS...</div></div>) : (<div className="flex-1 overflow-y-auto py-6 flex flex-col items-center"><div className="w-full max-w-md space-y-6 animate-enter"><div className="flex justify-between items-end"><h2 className="text-xl font-black text-rose-500">TRAP PHASE</h2><div className="text-xl font-mono text-rose-400">{displayTimer}s</div></div><div className="space-y-4 p-4 border border-rose-900/50 rounded bg-rose-950/10"><CyberInput value={ngWords.high} onChange={e => setNgWords({...ngWords, high: toHiragana(e.target.value)})} placeholder="大ダメージ" label="3PT (HIGH)" color="rose"/><CyberInput value={ngWords.mid} onChange={e => setNgWords({...ngWords, mid: toHiragana(e.target.value)})} placeholder="中ダメージ" label="2PT (MID)" color="rose"/><CyberInput value={ngWords.low} onChange={e => setNgWords({...ngWords, low: toHiragana(e.target.value)})} placeholder="小ダメージ" label="1PT (LOW)" color="rose"/></div><Button onClick={submitNg} variant="danger" className="w-full py-4 text-lg">BATTLE START</Button></div></div>)}</div>}
 
                     {(phase === 'playing' || phase === 'result') && (
                         <div className="flex flex-col h-full z-10 bg-slate-900/50 relative">
@@ -729,7 +732,7 @@
                                             <div key={i} className={`flex ${isVictimMe ? 'justify-end' : 'justify-start'}`}>
                                                 <div className="bg-rose-950/80 border border-rose-600 text-rose-300 px-4 py-2 rounded text-xs font-bold animate-pulse flex items-center gap-2">
                                                     <i data-lucide="alert-triangle" className="w-4 h-4"></i>
-                                                    <div><div>TIME LIMIT EXCEEDED</div><div className="text-rose-500">HIT -1</div></div>
+                                                    <div><div>時間切れ</div><div className="text-rose-500">HIT -1</div></div>
                                                 </div>
                                             </div>
                                         );
@@ -744,6 +747,14 @@
                                         </div>
                                     )
                                 })}
+                                {/* TYPING INDICATOR (OPPONENT) */}
+                                {isOpponentTyping && (
+                                    <div className="flex justify-start">
+                                        <div className="bg-slate-800/80 border border-slate-600 text-slate-400 px-3 py-2 rounded-full flex items-center gap-1">
+                                            <div className="typing-dot"></div><div className="typing-dot"></div><div className="typing-dot"></div>
+                                        </div>
+                                    </div>
+                                )}
                                 {isUnstable && (
                                     <div className="flex justify-center mt-4">
                                         <div className="bg-rose-950/90 border border-rose-500 text-rose-200 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 animate-pulse">
@@ -759,7 +770,7 @@
                                 <div className="flex justify-between items-center mb-2"><div className="text-xs text-slate-500">LAST: <span className="text-white text-xl font-bold">{lastChar}</span></div><div className={`text-xs font-bold ${isMyTurn?'text-cyan-400 animate-pulse':'text-slate-600'}`}>{isMyTurn?'YOUR TURN':'WAITING'}</div></div>
                                 {isMyTurn ? (
                                     <div className="flex gap-2">
-                                        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&phase==='playing'&&submitWord()} className="flex-1 bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded outline-none focus:border-cyan-500 transition-colors" placeholder="入力..."/>
+                                        <input value={input} onChange={handleInputChange} onBlur={handleInputBlur} onKeyDown={e=>e.key==='Enter'&&phase==='playing'&&submitWord()} className="flex-1 bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded outline-none focus:border-cyan-500 transition-colors" placeholder="入力..."/>
                                         <Button onClick={submitWord} disabled={!input} icon="send" className="!px-4" />
                                     </div>
                                 ) : (
