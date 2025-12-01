@@ -723,7 +723,24 @@
                 setIsMyTopicConfirmed(false); setIsOppTopicConfirmed(false); setHistory([]); setMyHp(MAX_HP); setOppHp(MAX_HP); setDamageAlert(null);
                 setTurnStartTime(0); setPhaseStartTime(0); setInitialChar(''); setIsOpponentTyping(false); processingTimeout.current = false; setTurnNotify(null);
             };
-            const copyId = () => { navigator.clipboard.writeText(myId); showError('コピーしました'); };
+            const copyId = () => {
+                const textarea = document.createElement('textarea');
+                textarea.value = myId;
+                textarea.style.position = 'fixed';
+                textarea.style.left = '-9999px';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    setError('コピーしました');
+                    AudioSys.playSE('confirm');
+                    setTimeout(() => setError(''), 3000);
+                } catch (err) {
+                    showError('コピーに失敗しました');
+                }
+                document.body.removeChild(textarea);
+            };
             const isMyTurn = turn === (isHost?'host':'guest');
 
             return (
