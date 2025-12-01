@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NEON WORD BATTLE: ULTIMATE</title>
+    <title>NEON WORD BATTLE: V6 ULTIMATE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -30,12 +30,8 @@
         }
 
         .app-container {
-            position: fixed;
-            inset: 0;
-            width: 100vw;
-            height: 100dvh;
-            display: flex;
-            flex-direction: column;
+            position: fixed; inset: 0; width: 100vw; height: 100dvh;
+            display: flex; flex-direction: column;
             background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%);
             overflow: hidden;
         }
@@ -94,45 +90,33 @@
             outline: none;
         }
 
-        /* Roulette Animation */
-        @keyframes blur-scroll {
-            0% { filter: blur(0); transform: translateY(0); }
-            50% { filter: blur(2px); transform: translateY(-5px); }
-            100% { filter: blur(0); transform: translateY(0); }
+        /* --- VS ANIMATIONS --- */
+        .vs-bg {
+            background: repeating-linear-gradient(90deg, transparent 0, transparent 50px, rgba(0, 240, 255, 0.1) 50px, rgba(0, 240, 255, 0.1) 51px);
+            animation: slide-bg 10s linear infinite;
         }
-        .roulette-anim {
-            animation: blur-scroll 0.1s infinite;
-        }
+        @keyframes slide-bg { from { background-position: 0 0; } to { background-position: 100px 0; } }
 
-        /* Coin Toss */
-        @keyframes flip {
-            0% { transform: rotateY(0); }
-            100% { transform: rotateY(1800deg); } /* 5 spins */
-        }
-        .coin-flip {
-            animation: flip 3s ease-out forwards;
-            transform-style: preserve-3d;
-        }
+        .slide-in-left { animation: slideInLeft 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+        @keyframes slideInLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* Damage Shake */
+        .slide-in-right { animation: slideInRight 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        .slam-in { animation: slamIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.8s forwards; opacity: 0; transform: scale(3); }
+        @keyframes slamIn { to { opacity: 1; transform: scale(1); } }
+
+        /* Coin & Shake */
+        @keyframes flip { 0% { transform: rotateY(0); } 100% { transform: rotateY(1800deg); } }
+        .coin-flip { animation: flip 3s ease-out forwards; transform-style: preserve-3d; }
+        
         @keyframes shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            10% { transform: translate(-1px, -2px) rotate(-1deg); }
-            20% { transform: translate(-3px, 0px) rotate(1deg); }
-            30% { transform: translate(3px, 2px) rotate(0deg); }
-            40% { transform: translate(1px, -1px) rotate(1deg); }
-            50% { transform: translate(-1px, 2px) rotate(-1deg); }
-            60% { transform: translate(-3px, 1px) rotate(0deg); }
-            70% { transform: translate(3px, 1px) rotate(-1deg); }
-            80% { transform: translate(-1px, -1px) rotate(1deg); }
-            90% { transform: translate(1px, 2px) rotate(0deg); }
-            100% { transform: translate(1px, -2px) rotate(-1deg); }
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+            20%, 40%, 60%, 80% { transform: translateX(4px); }
         }
-        .shake-anim {
-            animation: shake 0.5s;
-        }
+        .shake-anim { animation: shake 0.4s; }
 
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #000; }
         ::-webkit-scrollbar-thumb { background: #333; border: 1px solid #555; }
@@ -149,8 +133,8 @@
         const MAX_HP = 5;
         const TIMER_SETUP = 60;
         const TIMER_GAME = 60;
-        const DISCONNECT_TIMEOUT = 30000; // 30 seconds forfeit
-        const CONNECTION_WARNING_TIMEOUT = 3000; // 3 seconds warning
+        const DISCONNECT_TIMEOUT = 30000;
+        const CONNECTION_WARNING_TIMEOUT = 3000;
         
         const HIRAGANA_CHARS = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわがぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ";
         const getRandomChar = () => HIRAGANA_CHARS[Math.floor(Math.random() * HIRAGANA_CHARS.length)];
@@ -178,7 +162,6 @@
                 danger: "bg-rose-600 text-white hover:bg-rose-500 shadow-[0_0_20px_rgba(225,29,72,0.4)]",
                 ghost: "bg-transparent border border-cyan-500/50 text-cyan-400 hover:bg-cyan-950/30"
             };
-            
             return (
                 <button onClick={onClick} disabled={disabled} className={`${base} ${styles[variant]} ${className}`} style={{clipPath: 'polygon(10% 0, 100% 0, 100% 90%, 90% 100%, 0 100%, 0 10%)'}}>
                     {icon && <i data-lucide={icon} className="w-5 h-5"></i>}
@@ -190,14 +173,8 @@
         const CyberInput = ({ value, onChange, placeholder, label, color="cyan", maxLength, type="text" }) => (
             <div className="w-full relative group">
                 {label && <div className={`text-[10px] font-bold mb-1 tracking-widest ${color==='rose'?'text-rose-400':'text-cyan-400'}`}>{label}</div>}
-                <input
-                    type={type}
-                    value={value}
-                    onChange={onChange}
-                    placeholder={placeholder}
-                    maxLength={maxLength}
-                    className={`cyber-input w-full px-4 py-3 text-lg font-bold ${color==='rose'?'text-rose-400 border-rose-900 focus:border-rose-500':'text-cyan-400'}`}
-                />
+                <input type={type} value={value} onChange={onChange} placeholder={placeholder} maxLength={maxLength}
+                    className={`cyber-input w-full px-4 py-3 text-lg font-bold ${color==='rose'?'text-rose-400 border-rose-900 focus:border-rose-500':'text-cyan-400'}`} />
                 <div className={`absolute bottom-0 right-0 w-2 h-2 ${color==='rose'?'bg-rose-500':'bg-cyan-500'} opacity-50 group-focus-within:opacity-100`}></div>
             </div>
         );
@@ -216,11 +193,8 @@
             const [oppName, setOppName] = useState('RIVAL');
 
             // Flow
-            // lobby -> vs -> topic_input -> roulette -> ng_input -> coin -> playing -> result
             const [phase, setPhase] = useState('lobby'); 
             const [error, setError] = useState('');
-            
-            // Damage Animation
             const [damageAlert, setDamageAlert] = useState(null);
 
             // Connection Health
@@ -233,12 +207,9 @@
             const [rouletteData, setRouletteData] = useState({ candidates: [], winner: null });
             const [rouletteDisplay, setRouletteDisplay] = useState('');
             const [selectedTopic, setSelectedTopic] = useState(null);
-            
             const [ngWords, setNgWords] = useState({ high: '', mid: '', low: '' });
             const [oppNgReady, setOppNgReady] = useState(false);
-            
-            // Coin Toss
-            const [coinResult, setCoinResult] = useState(null); // 'host' or 'guest'
+            const [coinResult, setCoinResult] = useState(null);
             
             // Game State
             const [history, setHistory] = useState([]);
@@ -247,8 +218,6 @@
             const [oppHp, setOppHp] = useState(MAX_HP);
             const [input, setInput] = useState('');
             const [lastChar, setLastChar] = useState('');
-            
-            // Time Management
             const [displayTimer, setDisplayTimer] = useState(0); 
             const [turnStartTime, setTurnStartTime] = useState(0);
             
@@ -260,6 +229,7 @@
             const scrollRef = useRef(null);
             const loopRef = useRef(null);
 
+            // Sync References
             useEffect(() => {
                 stateRef.current = { 
                     phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName,
@@ -267,14 +237,11 @@
                 };
             }, [phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName, turnStartTime, lastActiveTime]);
 
-            // --- LOCAL STORAGE ---
-            useEffect(() => {
-                const savedName = localStorage.getItem('nwb_username');
-                if(savedName) setUserName(savedName);
-            }, []);
+            // Load/Save Name
+            useEffect(() => { const saved = localStorage.getItem('nwb_username'); if(saved) setUserName(saved); }, []);
             useEffect(() => { if(userName) localStorage.setItem('nwb_username', userName); }, [userName]);
 
-            // --- INITIALIZATION ---
+            // Init Peer
             useEffect(() => {
                 const id = generateId();
                 const p = new Peer(`NWB-${id}`);
@@ -285,55 +252,32 @@
             }, []);
 
             useEffect(() => { if(window.lucide) window.lucide.createIcons(); });
+            useEffect(() => { if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [history]);
 
+            // Heartbeat
             useEffect(() => {
-                if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-            }, [history]);
-
-            // --- HEARTBEAT & SLEEP DETECTION ---
-            useEffect(() => {
-                const handleVisibilityChange = () => {
-                    if (document.visibilityState === 'visible') {
-                        send({ type: 'REQUEST_SYNC' });
-                    }
-                };
+                const handleVisibilityChange = () => { if (document.visibilityState === 'visible') send({ type: 'REQUEST_SYNC' }); };
                 document.addEventListener('visibilitychange', handleVisibilityChange);
 
                 const heartbeat = setInterval(() => {
                     const now = Date.now();
-                    
-                    // 1. Send Ping
-                    if(stateRef.current.phase !== 'lobby') {
-                        send({ type: 'PING', ts: now });
-                    }
+                    if(stateRef.current.phase !== 'lobby') send({ type: 'PING', ts: now });
 
-                    // 2. Check Opponent Activity
                     if(stateRef.current.phase !== 'lobby') {
                         const elapsed = now - stateRef.current.lastActiveTime;
+                        if (elapsed > CONNECTION_WARNING_TIMEOUT && !isUnstable) setIsUnstable(true);
+                        else if (elapsed <= CONNECTION_WARNING_TIMEOUT && isUnstable) setIsUnstable(false);
                         
-                        // Weak signal warning (3 sec)
-                        if (elapsed > CONNECTION_WARNING_TIMEOUT && !isUnstable) {
-                            setIsUnstable(true);
-                        } else if (elapsed <= CONNECTION_WARNING_TIMEOUT && isUnstable) {
-                            setIsUnstable(false);
-                        }
-
-                        // Forfeit (30 sec)
                         if (stateRef.current.phase === 'playing' && elapsed > DISCONNECT_TIMEOUT) {
                             applyDamage('opp', 999, '通信途絶 (VICTORY)');
                             clearInterval(heartbeat);
                         }
                     }
                 }, 1000);
-
-                return () => {
-                    document.removeEventListener('visibilitychange', handleVisibilityChange);
-                    clearInterval(heartbeat);
-                };
+                return () => { document.removeEventListener('visibilitychange', handleVisibilityChange); clearInterval(heartbeat); };
             }, [isUnstable]);
 
-
-            // --- HIGH PRECISION TIMER LOOP ---
+            // Timer Loop
             useEffect(() => {
                 const loop = () => {
                     const s = stateRef.current;
@@ -350,41 +294,25 @@
                 return () => cancelAnimationFrame(loopRef.current);
             }, []);
 
-
-            // --- CONNECTION SETUP ---
-            const connect = () => {
-                if(!targetId || !peer) return;
-                const c = peer.connect(`NWB-${targetId.toUpperCase()}`);
-                setupConn(c, false);
-            };
+            // --- NETWORKING ---
+            const connect = () => { if(!targetId || !peer) return; setupConn(peer.connect(`NWB-${targetId.toUpperCase()}`), false); };
 
             const setupConn = (c, amHost) => {
-                setConn(c);
-                connRef.current = c;
-                setIsHost(amHost);
+                setConn(c); connRef.current = c; setIsHost(amHost);
                 c.on('open', () => {
                     send({ type: 'NAME_SYNC', name: stateRef.current.userName || 'PLAYER' });
                     setLastActiveTime(Date.now());
-                    
-                    // Show VS Screen first!
                     setPhase('vs');
                     setTimeout(() => {
                         setPhase('topic_input');
                         startSimpleSetupTimer();
-                    }, 4000); // 4 seconds VS animation
+                    }, 4000);
                 });
                 c.on('data', handleData);
-                c.on('close', () => {
-                    showError('切断されました');
-                    resetGame();
-                });
+                c.on('close', () => { showError('切断されました'); resetGame(); });
             };
 
-            const send = (data) => {
-                if(connRef.current && connRef.current.open) {
-                    connRef.current.send(data);
-                }
-            };
+            const send = (data) => { if(connRef.current?.open) connRef.current.send(data); };
 
             const startSimpleSetupTimer = () => {
                 setDisplayTimer(TIMER_SETUP);
@@ -396,14 +324,12 @@
                 }, 1000);
             };
 
-            // --- DATA HANDLER ---
             const handleData = (data) => {
                 const s = stateRef.current;
                 setLastActiveTime(Date.now());
 
                 switch(data.type) {
                     case 'PING': break;
-
                     case 'REQUEST_SYNC':
                         send({ 
                             type: 'SYNC_FULL', 
@@ -411,10 +337,18 @@
                             turnStartTime: s.turnStartTime, history: s.history, lastChar: s.lastChar
                         });
                         break;
-
+                    
                     case 'SYNC_FULL':
-                        setOppHp(data.myHp); setMyHp(data.oppHp); setTurn(data.turn);
-                        setTurnStartTime(data.turnStartTime); setHistory(data.history); setLastChar(data.lastChar);
+                        // CONFLICT RESOLUTION: Lowest HP is truth
+                        // data.myHp is RIVAL'S hp (so it maps to oppHp for me)
+                        // data.oppHp is MY hp (so it maps to myHp for me)
+                        setOppHp(prev => Math.min(prev, data.myHp));
+                        setMyHp(prev => Math.min(prev, data.oppHp));
+                        setTurn(data.turn);
+                        setTurnStartTime(data.turnStartTime);
+                        // Merge history if needed, but usually full replace is safer for simplicity
+                        if(data.history.length > s.history.length) setHistory(data.history);
+                        setLastChar(data.lastChar);
                         break;
 
                     case 'NAME_SYNC':
@@ -423,57 +357,37 @@
                         break;
 
                     case 'TOPIC_SUBMIT':
-                        if(s.isHost) {
-                            setOppTopic(data.topic);
-                            if(s.myTopic) startRoulette(s.myTopic, data.topic);
-                        }
+                        if(s.isHost) { setOppTopic(data.topic); if(s.myTopic) startRoulette(s.myTopic, data.topic); }
                         break;
-
                     case 'ROULETTE_START':
-                        setOppTopic(data.hostTopic);
-                        playRouletteAnimation(data.candidates, data.winner);
+                        setOppTopic(data.hostTopic); playRouletteAnimation(data.candidates, data.winner);
                         break;
-
                     case 'NG_READY':
-                        setOppNgReady(true);
-                        // If I am host and I am also ready, proceed to Coin Toss
-                        if(s.isHost && s.phase === 'ng_wait') {
-                            startCoinToss();
-                        }
+                        setOppNgReady(true); if(s.isHost && s.phase === 'ng_wait') startCoinToss();
                         break;
-
                     case 'COIN_TOSS_START':
-                        // Guest receives coin toss result and start character
-                        setCoinResult(data.result);
-                        setLastChar(data.initialChar);
-                        setPhase('coin');
+                        setCoinResult(data.result); setLastChar(data.initialChar); setPhase('coin');
                         setTimeout(() => {
-                            setPhase('playing');
-                            setTurn(data.result); // result is 'host' or 'guest' who goes first
-                            setHistory([]);
-                        }, 4000); // Animation duration
+                            setPhase('playing'); setTurn(data.result); setHistory([]);
+                        }, 4000);
                         break;
-
                     case 'START_GAME':
-                        // Fallback sync if needed
-                        setPhase('playing');
-                        setTurnStartTime(data.startTime);
+                        setPhase('playing'); setTurnStartTime(data.startTime);
                         break;
-
-                    case 'MOVE': receiveMove(data.word); break;
-
+                    case 'MOVE': 
+                        receiveMove(data.word); 
+                        break;
                     case 'TURN_CHANGE':
-                        setTurn(data.nextTurn);
-                        setTurnStartTime(data.startTime);
-                        setMyHp(data.oppHp); 
-                        setOppHp(data.myHp);
+                        setTurn(data.nextTurn); setTurnStartTime(data.startTime);
+                        // Sync HP on turn change too
+                        setMyHp(prev => Math.min(prev, data.oppHp)); 
+                        setOppHp(prev => Math.min(prev, data.myHp));
                         break;
-
                     case 'DAMAGE_REPORT':
+                        // Apply damage logic, then enforce the "lowest HP" rule
                         applyDamage('me', data.amount, data.reason);
-                        if(data.remainingHp !== undefined) setMyHp(data.remainingHp);
+                        if(data.remainingHp !== undefined) setMyHp(prev => Math.min(prev, data.remainingHp));
                         break;
-                    
                     case 'REMATCH': resetGame(); break;
                 }
             };
@@ -481,13 +395,8 @@
             // --- GAME LOGIC ---
             const submitTopic = () => {
                 if(!myTopic) return showError("お題を入力せよ");
-                if(isHost) {
-                    if(oppTopic) startRoulette(myTopic, oppTopic);
-                    else setPhase('topic_wait');
-                } else {
-                    send({ type: 'TOPIC_SUBMIT', topic: myTopic });
-                    setPhase('topic_wait');
-                }
+                if(isHost) { if(oppTopic) startRoulette(myTopic, oppTopic); else setPhase('topic_wait'); } 
+                else { send({ type: 'TOPIC_SUBMIT', topic: myTopic }); setPhase('topic_wait'); }
             };
 
             const startRoulette = (hostT, guestT) => {
@@ -499,24 +408,14 @@
             };
 
             const playRouletteAnimation = (candidates, winner) => {
-                setPhase('roulette');
-                setRouletteData({ candidates, winner });
+                setPhase('roulette'); setRouletteData({ candidates, winner });
                 let count = 0;
-                let maxCount = 30;
-                let speed = 50;
                 const spin = () => {
-                    setRouletteDisplay(candidates[count % 2]);
-                    count++;
-                    if(count < maxCount) {
-                        if(count > 20) speed += 20;
-                        setTimeout(spin, speed);
-                    } else {
-                        setRouletteDisplay(winner.text);
-                        setSelectedTopic(winner);
-                        setTimeout(() => {
-                            setPhase('ng_input');
-                            startSimpleSetupTimer();
-                        }, 2000);
+                    setRouletteDisplay(candidates[count % 2]); count++;
+                    if(count < 20) setTimeout(spin, 50 + count * 10);
+                    else {
+                        setRouletteDisplay(winner.text); setSelectedTopic(winner);
+                        setTimeout(() => { setPhase('ng_input'); startSimpleSetupTimer(); }, 2000);
                     }
                 };
                 spin();
@@ -524,33 +423,17 @@
 
             const submitNg = () => {
                 if(!ngWords.high) return showError("3pt NGワードは必須だ");
-                setPhase('ng_wait');
-                send({ type: 'NG_READY' });
-                // If Host and Opponent is ready, start Coin Toss
-                if(isHost && oppNgReady) {
-                    startCoinToss();
-                }
+                setPhase('ng_wait'); send({ type: 'NG_READY' });
+                if(isHost && oppNgReady) startCoinToss();
             };
 
-            // Only Host calls this
             const startCoinToss = () => {
                 const initialChar = getRandomChar();
                 const firstPlayer = Math.random() > 0.5 ? 'host' : 'guest';
-                
-                // Broadcast Decision
                 send({ type: 'COIN_TOSS_START', result: firstPlayer, initialChar });
-                
-                // Local Animation
-                setCoinResult(firstPlayer);
-                setLastChar(initialChar);
-                setPhase('coin');
-                
+                setCoinResult(firstPlayer); setLastChar(initialChar); setPhase('coin');
                 setTimeout(() => {
-                    setPhase('playing');
-                    setTurn(firstPlayer);
-                    setHistory([]);
-                    setTurnStartTime(Date.now());
-                    // Sync start time officially
+                    setPhase('playing'); setTurn(firstPlayer); setHistory([]); setTurnStartTime(Date.now());
                     send({ type: 'START_GAME', startTime: Date.now(), initialChar }); 
                 }, 4000);
             };
@@ -558,12 +441,10 @@
             const handleTimeout = () => {
                 const s = stateRef.current;
                 const damage = 1;
-                
-                if (s.turn === 'host') {
-                    applyDamage('me', damage, '時間切れ');
-                } else {
+                if (s.turn === 'host') applyDamage('me', damage, '時間切れ');
+                else {
                     applyDamage('opp', damage, '時間切れ');
-                    send({ type: 'DAMAGE_REPORT', amount: damage, reason: '時間切れ', remainingHp: s.oppHp - damage });
+                    send({ type: 'DAMAGE_REPORT', amount: damage, reason: '時間切れ', remainingHp: Math.max(0, s.oppHp - damage) });
                 }
                 changeTurnInternal(s.turn === 'host' ? 'guest' : 'host');
             };
@@ -575,18 +456,26 @@
                 if (lastChar && hira[0] !== lastChar) return showError(`「${lastChar}」から開始せよ`);
                 if (history.some(h => h.word === hira)) return showError('既出ワード');
                 
+                // IMPORTANT: Add to local history first so user sees their own word even if they die
+                const newHistory = [...history, { word: hira, owner: isHost?'host':'guest', damage: 0 }];
+                setHistory(newHistory);
+                setInput('');
+
+                // Check Suicide
                 if(hira.slice(-1) === 'ん') {
+                    // Force update history with damage
+                    const suicideHist = [...history, { word: hira, owner: isHost?'host':'guest', damage: MAX_HP }];
+                    setHistory(suicideHist);
                     applyDamage('me', MAX_HP, '自爆:「ん」');
+                    
                     send({ type: 'MOVE', word: hira });
-                    send({ type: 'SYNC_FULL', myHp: 0, oppHp: oppHp, turn: turn, history: [...history, {word: hira, owner: isHost?'host':'guest'}], turnStartTime: Date.now() });
+                    // Send SYNC immediately with death state
+                    send({ type: 'SYNC_FULL', myHp: 0, oppHp: oppHp, turn: turn, history: suicideHist, turnStartTime: Date.now(), lastChar: getLastChar(hira) });
                     return;
                 }
 
                 send({ type: 'MOVE', word: hira });
-                addHistory(hira, isHost?'host':'guest', 0);
                 setLastChar(getLastChar(hira));
-                setInput('');
-                
                 changeTurnInternal(isHost?'guest':'host');
             };
 
@@ -602,26 +491,26 @@
 
                 const owner = !s.isHost ? 'host' : 'guest';
                 
+                // Add to history FIRST
+                const newHistory = [...s.history, { word, owner, damage: dmg }];
+                setHistory(newHistory);
+                setLastChar(getLastChar(word));
+
                 if(dmg > 0) {
                     applyDamage('opp', dmg, reason);
+                    // Force Sync the point reduction
                     const newOppHp = Math.max(0, s.oppHp - dmg);
                     send({ type: 'DAMAGE_REPORT', amount: dmg, reason, remainingHp: newOppHp });
                 }
 
-                addHistory(word, owner, dmg);
-                setLastChar(getLastChar(word));
-                
-                if (s.isHost) {
-                    changeTurnInternal(s.isHost ? 'host' : 'guest');
-                } else {
-                    setTurn(s.isHost ? 'host' : 'guest');
-                }
+                // If host, coordinate turn change. If guest, follow local logic but respect host sync later
+                if (s.isHost) changeTurnInternal(s.isHost ? 'host' : 'guest');
+                else setTurn(s.isHost ? 'host' : 'guest');
             };
 
             const changeTurnInternal = (next) => {
                 const now = Date.now();
-                setTurn(next);
-                setTurnStartTime(now);
+                setTurn(next); setTurnStartTime(now);
                 if (stateRef.current.isHost) {
                     send({ type: 'TURN_CHANGE', nextTurn: next, startTime: now, myHp: stateRef.current.myHp, oppHp: stateRef.current.oppHp });
                 }
@@ -630,17 +519,30 @@
             const applyDamage = (target, amount, msg) => {
                 setDamageAlert({ target, amount, reason: msg });
                 setTimeout(() => setDamageAlert(null), 2000);
-                let currentHp, setHp;
-                if(target === 'me') { currentHp = myHp; setHp = setMyHp; }
-                else { currentHp = oppHp; setHp = setOppHp; }
+                
+                let setHp = target === 'me' ? setMyHp : setOppHp;
+                let currentHp = target === 'me' ? stateRef.current.myHp : stateRef.current.oppHp;
+
+                // Ensure we don't heal by accident, strictly reduce
                 const nextHp = Math.max(0, currentHp - amount);
                 setHp(nextHp);
-                setHistory(p => [...p, { type: 'alert', word: `⚠️ ${msg}` }]);
-                if(nextHp <= 0) setTimeout(() => setPhase('result'), 2500);
-            };
+                
+                // Update history to show damage on the last item if applicable
+                setHistory(prev => {
+                    if(prev.length === 0) return prev;
+                    // Only mark damage on the word itself if it was a word move (not timeout)
+                    if(msg.includes('NG') || msg.includes('自爆')) {
+                        const last = prev[prev.length - 1];
+                        if(last.damage === 0) {
+                            const updated = [...prev];
+                            updated[updated.length-1] = { ...last, damage: amount };
+                            return updated;
+                        }
+                    }
+                    return prev;
+                });
 
-            const addHistory = (word, owner, damage) => {
-                setHistory(prev => [...prev, { word, owner, damage }]);
+                if(nextHp <= 0) setTimeout(() => setPhase('result'), 2500);
             };
 
             const showError = (msg) => { setError(msg); setTimeout(() => setError(''), 3000); };
@@ -668,7 +570,6 @@
 
                     {error && <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] bg-rose-600 px-6 py-2 rounded shadow-[0_0_20px_#e11d48] font-bold border border-white animate-bounce whitespace-nowrap">{error}</div>}
 
-                    {/* WEAK SIGNAL WARNING */}
                     {isUnstable && phase !== 'lobby' && phase !== 'result' && (
                         <div className="fixed inset-0 z-[999] pointer-events-none flex items-center justify-center bg-black/50 backdrop-blur-sm">
                             <div className="bg-rose-600 text-white px-8 py-4 text-2xl font-black border-4 border-white animate-pulse shadow-[0_0_50px_#e11d48]">
@@ -677,7 +578,6 @@
                         </div>
                     )}
 
-                    {/* DAMAGE OVERLAY */}
                     {damageAlert && (
                         <div className="fixed inset-0 z-[90] flex items-center justify-center pointer-events-none">
                             <div className="absolute inset-0 bg-rose-900/40 animate-pulse"></div>
@@ -688,7 +588,7 @@
                         </div>
                     )}
 
-                    {/* === LOBBY === */}
+                    {/* LOBBY */}
                     {phase === 'lobby' && (
                         <div className="flex flex-col items-center justify-center h-full p-8 z-10 space-y-8 overflow-y-auto">
                             <div className="text-center relative">
@@ -718,17 +618,39 @@
                         </div>
                     )}
 
-                    {/* === VS SCREEN === */}
+                    {/* SUPER ENHANCED VS SCREEN */}
                     {phase === 'vs' && (
-                        <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center animate-enter">
-                            <div className="text-cyan-400 font-bold text-3xl mb-8 animate-pulse">{userName || 'YOU'}</div>
-                            <div className="text-9xl font-black text-transparent bg-clip-text bg-gradient-to-br from-rose-500 to-cyan-500 glitch-text italic" style={{fontFamily: 'Black Ops One'}}>VS</div>
-                            <div className="text-rose-500 font-bold text-3xl mt-8 animate-pulse">{oppName || 'RIVAL'}</div>
-                            <div className="absolute bottom-10 text-xs tracking-[1em] text-slate-500">INITIALIZING NEURAL LINK...</div>
+                        <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
+                            <div className="absolute inset-0 vs-bg opacity-30"></div>
+                            
+                            <div className="relative w-full h-full flex items-center justify-center">
+                                {/* Player 1 (Left) */}
+                                <div className="absolute left-0 top-1/4 w-1/2 h-48 bg-cyan-900/30 border-r-4 border-cyan-500 transform skew-x-12 -ml-10 flex items-center justify-end pr-10 slide-in-left">
+                                    <div className="text-right transform -skew-x-12">
+                                        <div className="text-cyan-300 text-sm tracking-[0.5em] mb-2">CHALLENGER</div>
+                                        <div className="text-5xl font-black text-white">{userName || 'YOU'}</div>
+                                    </div>
+                                </div>
+
+                                {/* Player 2 (Right) */}
+                                <div className="absolute right-0 bottom-1/4 w-1/2 h-48 bg-rose-900/30 border-l-4 border-rose-500 transform skew-x-12 -mr-10 flex items-center justify-start pl-10 slide-in-right">
+                                    <div className="text-left transform -skew-x-12">
+                                        <div className="text-rose-300 text-sm tracking-[0.5em] mb-2">OPPONENT</div>
+                                        <div className="text-5xl font-black text-white">{oppName || 'RIVAL'}</div>
+                                    </div>
+                                </div>
+                                
+                                {/* VS Logo */}
+                                <div className="z-10 text-9xl font-black italic text-transparent bg-clip-text bg-gradient-to-t from-white to-slate-400 drop-shadow-[0_0_25px_rgba(255,255,255,0.8)] slam-in" style={{fontFamily: 'Black Ops One'}}>
+                                    VS
+                                </div>
+                            </div>
+                            
+                            <div className="absolute bottom-10 text-xs tracking-[1em] text-slate-500 animate-pulse">NEURAL LINK ESTABLISHED</div>
                         </div>
                     )}
 
-                    {/* === ROULETTE === */}
+                    {/* ROULETTE */}
                     {phase === 'roulette' && (
                         <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center space-y-8">
                             <div className="text-cyan-500 text-sm tracking-[0.5em] animate-pulse">DECIDING TOPIC...</div>
@@ -736,7 +658,7 @@
                         </div>
                     )}
 
-                    {/* === COIN TOSS === */}
+                    {/* COIN TOSS */}
                     {phase === 'coin' && (
                         <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center">
                             <div className="text-xs tracking-[0.5em] text-cyan-400 mb-8">DECIDING FIRST ATTACKER</div>
@@ -754,33 +676,24 @@
                         </div>
                     )}
 
-                    {/* === TOPIC INPUT === */}
+                    {/* TOPIC INPUT */}
                     {(phase === 'topic_input' || phase === 'topic_wait') && (
                         <div className="flex flex-col h-full z-10 p-6 items-center justify-center space-y-8 bg-black/80">
                             {phase === 'topic_wait' ? (
-                                <div className="text-center animate-pulse">
-                                    <div className="text-2xl font-black text-cyan-400 mb-2">WAITING FOR RIVAL</div>
-                                    <div className="text-xs text-slate-500">同期中...</div>
-                                </div>
+                                <div className="text-center animate-pulse"><div className="text-2xl font-black text-cyan-400 mb-2">WAITING FOR RIVAL</div><div className="text-xs text-slate-500">同期中...</div></div>
                             ) : (
                                 <div className="w-full max-w-md space-y-6 animate-enter">
-                                    <div className="flex justify-between items-end border-b border-cyan-900 pb-2">
-                                        <h2 className="text-2xl font-black text-white">TOPIC PHASE</h2>
-                                        <div className="text-xl font-mono text-cyan-400">{displayTimer}s</div>
-                                    </div>
+                                    <div className="flex justify-between items-end border-b border-cyan-900 pb-2"><h2 className="text-2xl font-black text-white">TOPIC PHASE</h2><div className="text-xl font-mono text-cyan-400">{displayTimer}s</div></div>
                                     <div className="space-y-4">
                                         <CyberInput value={myTopic} onChange={e => setMyTopic(e.target.value)} placeholder="例：赤いもの" label="PROPOSED TOPIC"/>
-                                        <div className="flex gap-3">
-                                            <Button onClick={() => setMyTopic(SAMPLE_TOPICS[Math.floor(Math.random()*SAMPLE_TOPICS.length)])} variant="ghost" className="flex-1 text-xs">RANDOM</Button>
-                                            <Button onClick={submitTopic} className="flex-[2]">CONFIRM</Button>
-                                        </div>
+                                        <div className="flex gap-3"><Button onClick={() => setMyTopic(SAMPLE_TOPICS[Math.floor(Math.random()*SAMPLE_TOPICS.length)])} variant="ghost" className="flex-1 text-xs">RANDOM</Button><Button onClick={submitTopic} className="flex-[2]">CONFIRM</Button></div>
                                     </div>
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* === NG INPUT === */}
+                    {/* NG INPUT */}
                     {(phase === 'ng_input' || phase === 'ng_wait') && (
                         <div className="flex flex-col h-full z-10 p-4 bg-slate-950">
                             <div className="flex-none pt-4 pb-2 text-center">
@@ -788,17 +701,11 @@
                                 <div className="text-3xl md:text-4xl font-black text-white py-4 border-y border-cyan-900 bg-cyan-950/20">{selectedTopic?.text}</div>
                             </div>
                             {phase === 'ng_wait' ? (
-                                <div className="flex-1 flex flex-col items-center justify-center space-y-4">
-                                    <div className="w-16 h-16 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
-                                    <div className="text-rose-500 font-bold animate-pulse">DEPLOYING TRAPS...</div>
-                                </div>
+                                <div className="flex-1 flex flex-col items-center justify-center space-y-4"><div className="w-16 h-16 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div><div className="text-rose-500 font-bold animate-pulse">DEPLOYING TRAPS...</div></div>
                             ) : (
                                 <div className="flex-1 overflow-y-auto py-6 flex flex-col items-center">
                                     <div className="w-full max-w-md space-y-6 animate-enter">
-                                        <div className="flex justify-between items-end">
-                                            <h2 className="text-xl font-black text-rose-500">TRAP PHASE</h2>
-                                            <div className="text-xl font-mono text-rose-400">{displayTimer}s</div>
-                                        </div>
+                                        <div className="flex justify-between items-end"><h2 className="text-xl font-black text-rose-500">TRAP PHASE</h2><div className="text-xl font-mono text-rose-400">{displayTimer}s</div></div>
                                         <div className="space-y-4 p-4 border border-rose-900/50 rounded bg-rose-950/10">
                                             <CyberInput value={ngWords.high} onChange={e => setNgWords({...ngWords, high: toHiragana(e.target.value)})} placeholder="即死 (必須)" label="3PT (FATAL)" color="rose"/>
                                             <CyberInput value={ngWords.mid} onChange={e => setNgWords({...ngWords, mid: toHiragana(e.target.value)})} placeholder="中ダメージ" label="2PT (CRITICAL)" color="rose"/>
@@ -811,51 +718,29 @@
                         </div>
                     )}
 
-                    {/* === GAMEPLAY === */}
+                    {/* GAMEPLAY */}
                     {(phase === 'playing' || phase === 'result') && (
                         <div className="flex flex-col h-full z-10 bg-slate-900/50 relative">
-                            {/* FIXED HEADER */}
+                            {/* HEADER */}
                             <div className="absolute top-0 left-0 right-0 z-30 p-4 bg-slate-900 border-b border-slate-700 shadow-xl flex justify-between items-end">
-                                <div className="w-1/3">
-                                    <div className="text-[10px] text-rose-500 font-bold mb-1 truncate">{oppName}</div>
-                                    <div className="flex gap-1 h-2">
-                                        {[...Array(MAX_HP)].map((_,i) => <div key={i} className={`flex-1 rounded-sm ${i<oppHp?'bg-rose-500 shadow-[0_0_5px_#f43f5e]':'bg-slate-800'}`}></div>)}
-                                    </div>
-                                </div>
-                                <div className="text-center">
-                                    <div className={`text-4xl font-black ${displayTimer<=5?'text-rose-500 animate-pulse':'text-white'}`} style={{fontFamily: 'Black Ops One'}}>{displayTimer}</div>
-                                </div>
-                                <div className="w-1/3 text-right">
-                                    <div className="text-[10px] text-cyan-400 font-bold mb-1 truncate">{userName || 'YOU'}</div>
-                                    <div className="flex gap-1 h-2 justify-end">
-                                        {[...Array(MAX_HP)].map((_,i) => <div key={i} className={`flex-1 rounded-sm ${i<myHp?'bg-cyan-400 shadow-[0_0_5px_#06b6d4]':'bg-slate-800'}`}></div>)}
-                                    </div>
-                                </div>
+                                <div className="w-1/3"><div className="text-[10px] text-rose-500 font-bold mb-1 truncate">{oppName}</div><div className="flex gap-1 h-2">{[...Array(MAX_HP)].map((_,i) => <div key={i} className={`flex-1 rounded-sm ${i<oppHp?'bg-rose-500 shadow-[0_0_5px_#f43f5e]':'bg-slate-800'}`}></div>)}</div></div>
+                                <div className="text-center"><div className={`text-4xl font-black ${displayTimer<=5?'text-rose-500 animate-pulse':'text-white'}`} style={{fontFamily: 'Black Ops One'}}>{displayTimer}</div></div>
+                                <div className="w-1/3 text-right"><div className="text-[10px] text-cyan-400 font-bold mb-1 truncate">{userName || 'YOU'}</div><div className="flex gap-1 h-2 justify-end">{[...Array(MAX_HP)].map((_,i) => <div key={i} className={`flex-1 rounded-sm ${i<myHp?'bg-cyan-400 shadow-[0_0_5px_#06b6d4]':'bg-slate-800'}`}></div>)}</div></div>
                             </div>
                             
                             <div className="h-24 flex-none"></div>
 
                             {/* BANNER */}
                             <div className="flex-none z-20 space-y-1">
-                                <div className="bg-slate-900/80 border-y border-slate-800 py-1 text-center text-xs text-slate-300">
-                                    MISSION: <span className="text-white font-bold">{selectedTopic?.text}</span>
-                                </div>
+                                <div className="bg-slate-900/80 border-y border-slate-800 py-1 text-center text-xs text-slate-300">MISSION: <span className="text-white font-bold">{selectedTopic?.text}</span></div>
                                 <div className="flex justify-center gap-2 px-2">
-                                    {[ngWords.high, ngWords.mid, ngWords.low].map((w, i) => w && (
-                                        <div key={i} className="bg-rose-950/60 border border-rose-800 text-rose-300 px-2 py-0.5 text-[10px] rounded backdrop-blur border-b-2">
-                                            {w} <span className="text-rose-500 font-bold">{3-i}pt</span>
-                                        </div>
-                                    ))}
+                                    {[ngWords.high, ngWords.mid, ngWords.low].map((w, i) => w && <div key={i} className="bg-rose-950/60 border border-rose-800 text-rose-300 px-2 py-0.5 text-[10px] rounded backdrop-blur border-b-2">{w} <span className="text-rose-500 font-bold">{3-i}pt</span></div>)}
                                 </div>
                             </div>
 
                             {/* CHAT */}
                             <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20" ref={scrollRef}>
-                                <div className="flex justify-center my-4">
-                                    <div className="bg-cyan-950/50 border border-cyan-800 text-cyan-300 px-4 py-2 rounded-full text-xs font-bold">
-                                        START: 「{history.length === 0 ? lastChar : ''}」
-                                    </div>
-                                </div>
+                                <div className="flex justify-center my-4"><div className="bg-cyan-950/50 border border-cyan-800 text-cyan-300 px-4 py-2 rounded-full text-xs font-bold">START: 「{history.length === 0 ? lastChar : ''}」</div></div>
                                 {history.map((h, i) => {
                                     if(h.type==='alert') return <div key={i} className="text-center text-[10px] text-rose-400 font-bold bg-rose-950/50 py-1 rounded border border-rose-900 animate-pulse">{h.word}</div>;
                                     const isMine = h.owner === (isHost?'host':'guest');
@@ -872,32 +757,20 @@
 
                             {/* INPUT */}
                             <div className="flex-none p-3 pb-6 bg-black border-t border-slate-800 z-30">
-                                <div className="flex justify-between items-center mb-2">
-                                    <div className="text-xs text-slate-500">LAST: <span className="text-white text-xl font-bold">{lastChar}</span></div>
-                                    <div className={`text-xs font-bold ${isMyTurn?'text-cyan-400 animate-pulse':'text-slate-600'}`}>{isMyTurn?'YOUR TURN':'WAITING'}</div>
-                                </div>
+                                <div className="flex justify-between items-center mb-2"><div className="text-xs text-slate-500">LAST: <span className="text-white text-xl font-bold">{lastChar}</span></div><div className={`text-xs font-bold ${isMyTurn?'text-cyan-400 animate-pulse':'text-slate-600'}`}>{isMyTurn?'YOUR TURN':'WAITING'}</div></div>
                                 <div className="flex gap-2">
-                                    <input 
-                                        value={input} onChange={e=>setInput(e.target.value)}
-                                        onKeyDown={e=>e.key==='Enter'&&isMyTurn&&phase==='playing'&&submitWord()}
-                                        disabled={!isMyTurn || phase !== 'playing'}
-                                        className="flex-1 bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded outline-none focus:border-cyan-500 transition-colors"
-                                        placeholder="入力..."
-                                    />
+                                    <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&isMyTurn&&phase==='playing'&&submitWord()} disabled={!isMyTurn || phase !== 'playing'} className="flex-1 bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded outline-none focus:border-cyan-500 transition-colors" placeholder="入力..."/>
                                     <Button onClick={submitWord} disabled={!isMyTurn||!input||phase!=='playing'} icon="send" className="!px-4" />
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* === RESULT === */}
+                    {/* RESULT */}
                     {phase === 'result' && (
                         <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 backdrop-blur animate-enter">
                             <h1 className={`text-6xl font-black italic mb-4 glitch-text ${myHp > 0 ? 'text-cyan-400' : 'text-rose-500'}`}>{myHp > 0 ? 'VICTORY' : 'DEFEAT'}</h1>
-                            <div className="text-center mb-8">
-                                <div className="text-xs text-slate-500 tracking-widest mb-1">FINAL STATUS</div>
-                                <div className="text-2xl font-mono text-white">{userName} HP: {myHp} / {oppName} HP: {oppHp}</div>
-                            </div>
+                            <div className="text-center mb-8"><div className="text-xs text-slate-500 tracking-widest mb-1">FINAL STATUS</div><div className="text-2xl font-mono text-white">{userName} HP: {myHp} / {oppName} HP: {oppHp}</div></div>
                             <Button onClick={handleRematch} className="px-12 py-4 text-xl">REMATCH</Button>
                         </div>
                     )}
