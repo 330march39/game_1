@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>KOTOBA STADIUM - ULTIMATE V3</title>
+    <title>KOTOBA STADIUM - ULTIMATE FINAL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -15,17 +15,12 @@
         @import url('https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap');
         
         :root {
-            /* Vivid Splat Colors (More Contrast) */
-            --c-p1: #0052FF; /* Nintendo Blue */
-            --c-p1-light: #4D85FF;
-            --c-p2: #FF005C; /* Nintendo Red/Pink */
-            --c-p2-light: #FF4D8C;
-            --c-accent: #FFD600; /* Coin Yellow */
-            
-            --c-bg: #F0F2F5;
-            --c-text: #2D3748;
-
-            /* Safe Area for Mobile */
+            /* Cute & Vivid Colors */
+            --c-p1: #3B82F6; /* Pop Blue */
+            --c-p2: #EC4899; /* Pop Pink */
+            --c-accent: #F59E0B; /* Pop Yellow */
+            --c-bg: #F0F9FF;
+            --c-text: #1E293B;
             --safe-bottom: env(safe-area-inset-bottom, 20px);
         }
 
@@ -40,71 +35,65 @@
             overscroll-behavior: none;
         }
 
-        /* --- NINTENDO-STYLE POP UI --- */
+        /* --- UI COMPONENTS --- */
         .font-pop { font-family: 'Mochiy Pop One', sans-serif; }
 
         .pop-btn {
-            transition: all 0.1s cubic-bezier(0.34, 1.56, 0.64, 1);
-            box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+            transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 6px 0 rgba(0,0,0,0.15);
             transform: translateY(0);
             position: relative;
             overflow: hidden;
         }
         .pop-btn::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(rgba(255,255,255,0.3) 0%, transparent 100%);
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(255,255,255,0.4) 0%, transparent 100%);
             pointer-events: none;
         }
         .pop-btn:active:not(:disabled) {
             transform: translateY(6px);
-            box-shadow: 0 0 0 rgba(0,0,0,0.2);
+            box-shadow: 0 0 0 rgba(0,0,0,0.15);
         }
         .pop-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            box-shadow: none;
-            transform: translateY(6px);
-            filter: grayscale(100%);
+            opacity: 0.5; cursor: not-allowed; box-shadow: none;
+            transform: translateY(6px); filter: grayscale(80%);
         }
 
         .pop-card {
             background: white;
             border-radius: 1.5rem;
-            border: 4px solid #E2E8F0;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border: 4px solid #E0F2FE;
+            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.15);
         }
 
         .pop-input {
-            border: 3px solid #CBD5E0;
+            border: 3px solid #CBD5E1;
             border-radius: 1rem;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             font-family: 'Zen Maru Gothic', sans-serif;
             font-weight: 900;
-            font-size: 16px; /* Prevent zoom on iOS */
-            color: #2D3748;
+            font-size: 16px; /* iOS zoom fix */
+            color: #334155;
         }
         .pop-input:focus {
             outline: none;
             border-color: var(--c-p1);
-            background-color: #F7FAFC;
-            box-shadow: 0 0 0 4px rgba(0, 82, 255, 0.15);
+            background-color: #F0F9FF;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
             transform: scale(1.02);
         }
-        .pop-input::placeholder { color: #A0AEC0; font-weight: 500; }
 
-        /* --- BACKGROUND PATTERN --- */
+        /* --- BACKGROUND --- */
         .bg-pattern {
-            background-color: #F7FAFC;
+            background-color: #F0F9FF;
             background-image: 
-                linear-gradient(45deg, #EDF2F7 25%, transparent 25%, transparent 75%, #EDF2F7 75%, #EDF2F7),
-                linear-gradient(45deg, #EDF2F7 25%, transparent 25%, transparent 75%, #EDF2F7 75%, #EDF2F7);
-            background-size: 40px 40px;
-            background-position: 0 0, 20px 20px;
-            animation: bg-scroll 40s linear infinite;
+                radial-gradient(#BAE6FD 15%, transparent 16%),
+                radial-gradient(#BAE6FD 15%, transparent 16%);
+            background-size: 30px 30px;
+            background-position: 0 0, 15px 15px;
+            animation: bg-scroll 60s linear infinite;
         }
-        @keyframes bg-scroll { from { background-position: 0 0, 20px 20px; } to { background-position: 80px 40px, 100px 60px; } }
+        @keyframes bg-scroll { from { background-position: 0 0, 15px 15px; } to { background-position: 60px 60px, 75px 75px; } }
 
         /* --- ANIMATIONS --- */
         @keyframes pop-in {
@@ -114,33 +103,26 @@
         }
         .animate-pop-in { animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 
-        @keyframes title-bounce {
+        @keyframes float-title {
             0%, 100% { transform: translateY(0) rotate(0deg); }
-            25% { transform: translateY(-10px) rotate(-2deg); }
-            75% { transform: translateY(-5px) rotate(2deg); }
+            50% { transform: translateY(-10px) rotate(2deg); }
         }
-        .animate-title { animation: title-bounce 3s infinite ease-in-out; }
+        .animate-title { animation: float-title 4s infinite ease-in-out; }
 
-        @keyframes shake-hard {
-            0%, 100% { transform: translateX(0) rotate(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-8px) rotate(-3deg); }
-            20%, 40%, 60%, 80% { transform: translateX(8px) rotate(3deg); }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px) rotate(-3deg); }
+            40%, 80% { transform: translateX(6px) rotate(3deg); }
         }
-        .animate-shake { animation: shake-hard 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        .animate-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
 
-        /* WIPES */
-        @keyframes wipe-reveal {
-            0% { clip-path: circle(0% at 50% 50%); }
-            100% { clip-path: circle(150% at 50% 50%); }
-        }
-        .wipe-transition { animation: wipe-reveal 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
-
-        /* 3D Coin */
+        /* 3D Coin - Fix */
         .coin-scene { perspective: 1000px; }
         .coin-3d {
             width: 100%; height: 100%;
             transform-style: preserve-3d;
-            transition: transform 3s cubic-bezier(0.1, 0.8, 0.1, 1);
+            /* Transition controlled by JS state */
+            transition: transform 3.5s cubic-bezier(0.15, 0.9, 0.3, 1.1); 
         }
         .coin-face {
             position: absolute; width: 100%; height: 100%;
@@ -148,32 +130,25 @@
             display: flex; align-items: center; justify-content: center;
             border-radius: 50%;
             border: 8px solid white;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.1), 0 4px 10px rgba(0,0,0,0.2);
         }
-
-        /* Particles */
-        #particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; }
 
         /* Utilities */
         .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #CBD5E0; border-radius: 99px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
         .pb-safe { padding-bottom: var(--safe-bottom); }
-        
-        /* Flex Fixes */
         .flex-fix-input { min-width: 0; flex: 1; }
     </style>
 </head>
 <body>
     <div id="root"></div>
-    <canvas id="particles"></canvas>
+    <canvas id="particles" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999;"></canvas>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef, useMemo, useCallback } = React;
+        const { useState, useEffect, useRef } = React;
 
-        // --- SOUND ENGINE V3 (Nintendo-like Polish) ---
+        // --- SOUND ENGINE V4 (Kawaii & Wakuwaku) ---
         const SoundEngine = {
             ctx: null,
             init: () => {
@@ -191,58 +166,55 @@
                 gain.connect(SoundEngine.ctx.destination);
 
                 switch(type) {
-                    case 'tap': // Pop (UI)
+                    case 'tap': // Cute "Pop"
                         osc.type = 'sine';
                         osc.frequency.setValueAtTime(800, t);
-                        osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
-                        gain.gain.setValueAtTime(0.2, t);
-                        gain.gain.linearRampToValueAtTime(0, t + 0.1);
-                        osc.start(t); osc.stop(t + 0.1);
+                        osc.frequency.exponentialRampToValueAtTime(100, t + 0.15);
+                        gain.gain.setValueAtTime(0.25, t);
+                        gain.gain.linearRampToValueAtTime(0, t + 0.15);
+                        osc.start(t); osc.stop(t + 0.15);
                         break;
-                    case 'confirm': // "Kaching!"
+                    case 'confirm': // "Kira-ling!"
                         const o2 = SoundEngine.ctx.createOscillator();
                         o2.connect(gain);
-                        osc.type = 'triangle';
-                        o2.type = 'sine';
-                        osc.frequency.setValueAtTime(880, t);
-                        osc.frequency.linearRampToValueAtTime(1760, t + 0.1);
-                        o2.frequency.setValueAtTime(1760, t);
-                        gain.gain.setValueAtTime(0.1, t);
-                        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
-                        osc.start(t); o2.start(t);
-                        osc.stop(t + 0.4); o2.stop(t + 0.4);
-                        break;
-                    case 'turn': // "Pi-Pik!"
-                        osc.type = 'square';
+                        osc.type = 'triangle'; o2.type = 'sine';
                         osc.frequency.setValueAtTime(1200, t);
-                        gain.gain.setValueAtTime(0.05, t);
-                        gain.gain.setValueAtTime(0, t + 0.08);
-                        gain.gain.setValueAtTime(0.05, t + 0.15);
-                        gain.gain.setValueAtTime(0, t + 0.3);
-                        osc.start(t); osc.stop(t + 0.3);
+                        osc.frequency.linearRampToValueAtTime(1800, t + 0.1);
+                        o2.frequency.setValueAtTime(2400, t); // Harmonic
+                        gain.gain.setValueAtTime(0.15, t);
+                        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+                        osc.start(t); o2.start(t);
+                        osc.stop(t + 0.5); o2.stop(t + 0.5);
                         break;
-                    case 'damage': // Heavy Thud
-                        osc.type = 'sawtooth';
-                        osc.frequency.setValueAtTime(100, t);
-                        osc.frequency.exponentialRampToValueAtTime(20, t + 0.2);
-                        gain.gain.setValueAtTime(0.4, t);
-                        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
-                        osc.start(t); osc.stop(t + 0.2);
+                    case 'turn': // "Piko-n!"
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(987, t); // B5
+                        osc.frequency.setValueAtTime(1318, t + 0.1); // E6
+                        gain.gain.setValueAtTime(0.1, t);
+                        gain.gain.setValueAtTime(0.1, t + 0.1);
+                        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+                        osc.start(t); osc.stop(t + 0.4);
                         break;
-                    case 'win': // Fanfare
-                        const playNote = (f, start, dur) => {
+                    case 'damage': // "Poyu~n" (Bouncy)
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(300, t);
+                        osc.frequency.linearRampToValueAtTime(200, t + 0.1);
+                        osc.frequency.linearRampToValueAtTime(250, t + 0.2);
+                        osc.frequency.linearRampToValueAtTime(150, t + 0.4);
+                        gain.gain.setValueAtTime(0.3, t);
+                        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+                        osc.start(t); osc.stop(t + 0.4);
+                        break;
+                    case 'win': // Cheerful Jingle
+                        const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C E G C E
+                        notes.forEach((f, i) => {
                             const o = SoundEngine.ctx.createOscillator();
                             const g = SoundEngine.ctx.createGain();
-                            o.type = 'triangle';
-                            o.connect(g);
-                            g.connect(SoundEngine.ctx.destination);
+                            o.type = 'triangle'; o.connect(g); g.connect(SoundEngine.ctx.destination);
                             o.frequency.value = f;
-                            g.gain.setValueAtTime(0.1, start);
-                            g.gain.linearRampToValueAtTime(0, start + dur);
-                            o.start(start); o.stop(start + dur);
-                        };
-                        [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50].forEach((f, i) => {
-                            playNote(f, t + i*0.12, 0.4);
+                            g.gain.setValueAtTime(0.1, t + i*0.1);
+                            g.gain.linearRampToValueAtTime(0, t + i*0.1 + 0.4);
+                            o.start(t + i*0.1); o.stop(t + i*0.1 + 0.4);
                         });
                         break;
                 }
@@ -265,14 +237,14 @@
             },
             burst: () => {
                 ParticleSystem.active = true;
-                const colors = ['#0052FF', '#FF005C', '#FFD600', '#FFFFFF'];
-                for(let i=0; i<120; i++) {
+                const colors = ['#3B82F6', '#EC4899', '#F59E0B', '#FFFFFF'];
+                for(let i=0; i<80; i++) {
                     ParticleSystem.particles.push({
                         x: window.innerWidth/2, y: window.innerHeight/2,
-                        vx: (Math.random() - 0.5) * 25, vy: (Math.random() - 0.5) * 25 - 8,
-                        size: Math.random() * 10 + 5, color: colors[Math.floor(Math.random()*colors.length)],
-                        life: 1.0, decay: Math.random() * 0.015 + 0.005,
-                        rotation: Math.random() * 360, vRotation: (Math.random() - 0.5) * 20
+                        vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20 - 5,
+                        size: Math.random() * 8 + 4, color: colors[Math.floor(Math.random()*colors.length)],
+                        life: 1.0, decay: Math.random() * 0.02 + 0.005,
+                        spin: Math.random() * 0.2
                     });
                 }
                 ParticleSystem.loop();
@@ -280,35 +252,23 @@
             loop: () => {
                 if(!ParticleSystem.active) return;
                 const ctx = ParticleSystem.ctx;
-                ctx.clearRect(0,0,ParticleSystem.canvas.width,ParticleSystem.canvas.height);
-
-                for(let i = ParticleSystem.particles.length-1; i>=0; i--) {
+                ctx.clearRect(0,0,ParticleSystem.canvas.width, ParticleSystem.canvas.height);
+                for(let i=ParticleSystem.particles.length-1; i>=0; i--) {
                     const p = ParticleSystem.particles[i];
-                    p.x += p.vx; p.y += p.vy; p.vy += 0.6; p.life -= p.decay; p.rotation += p.vRotation;
-                    
+                    p.x += p.vx; p.y += p.vy; p.vy += 0.5; p.life -= p.decay;
                     if(p.life <= 0) { ParticleSystem.particles.splice(i, 1); continue; }
-
-                    ctx.save();
-                    ctx.translate(p.x, p.y);
-                    ctx.rotate(p.rotation * Math.PI / 180);
-                    ctx.globalAlpha = p.life;
-                    ctx.fillStyle = p.color;
+                    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.life * 10);
+                    ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
                     ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
                     ctx.restore();
                 }
-
                 if(ParticleSystem.particles.length > 0) requestAnimationFrame(ParticleSystem.loop);
                 else { ParticleSystem.active = false; ctx.clearRect(0,0,ParticleSystem.canvas.width,ParticleSystem.canvas.height); }
             }
         };
 
         // --- CONSTANTS ---
-        const SAMPLE_TOPICS = [
-            "アニメキャラ", "学校にあるもの", "コンビニの商品", "4文字の言葉", "緑色のもの", "歴史上の人物",
-            "赤いもの", "丸いもの", "国名・地名", "動物", "水の中の生き物", "冬に関連するもの",
-            "キッチンにあるもの", "スポーツ", "職業", "カタカナ語", "3文字の言葉", "甘いもの",
-            "冷たいもの", "空を飛ぶもの", "黄色いもの", "家にあるもの", "漢字2文字", "夏に関連するもの"
-        ];
+        const SAMPLE_TOPICS = ["アニメキャラ", "学校にあるもの", "コンビニの商品", "4文字の言葉", "緑色のもの", "歴史上の人物", "赤いもの", "丸いもの", "国名・地名", "動物", "水の中の生き物", "冬に関連するもの", "キッチンにあるもの", "スポーツ", "職業", "カタカナ語", "3文字の言葉", "甘いもの", "冷たいもの", "空を飛ぶもの", "黄色いもの", "家にあるもの", "漢字2文字", "夏に関連するもの"];
         const MAX_HP = 5;
         const TIMER_SETUP = 60; 
         const TIMER_GAME = 60; 
@@ -324,45 +284,30 @@
             const last = w.slice(-1);
             const map = {'ぁ':'あ','ぃ':'い','ぅ':'う','ぇ':'え','ぉ':'お','っ':'つ','ゃ':'や','ゅ':'ゆ','ょ':'よ','ゎ':'わ'};
             if(map[last]) return map[last];
-            if(last === 'ー') {
-                const prev = w.slice(-2, -1);
-                return map[prev] || prev;
-            }
+            if(last === 'ー') { const prev = w.slice(-2, -1); return map[prev] || prev; }
             return last;
         };
 
         // --- COMPONENTS ---
         const Button = ({ onClick, children, className="", disabled=false, variant="primary", icon, size="md", fullWidth=false }) => {
             const handleInteract = () => {
-                if(!disabled) {
-                    SoundEngine.init();
-                    SoundEngine.play(variant === 'danger' ? 'confirm' : 'tap');
-                    onClick && onClick();
-                }
+                if(!disabled) { SoundEngine.init(); SoundEngine.play(variant === 'danger' ? 'confirm' : 'tap'); onClick && onClick(); }
             };
-            
             const styles = {
-                primary: "bg-[#0052FF] hover:bg-[#0040D0] text-white border-b-4 border-[#0030A0] active:border-b-0",
-                danger: "bg-[#FF005C] hover:bg-[#D0004C] text-white border-b-4 border-[#A0003A] active:border-b-0",
-                accent: "bg-[#FFD600] hover:bg-[#E0BC00] text-slate-900 border-b-4 border-[#B09200] active:border-b-0",
+                primary: "bg-blue-500 hover:bg-blue-400 text-white border-b-4 border-blue-700 active:border-b-0",
+                danger: "bg-pink-500 hover:bg-pink-400 text-white border-b-4 border-pink-700 active:border-b-0",
                 ghost: "bg-slate-200 hover:bg-slate-300 text-slate-600 border-b-4 border-slate-300 active:border-b-0"
             };
             const sizes = { sm: "px-3 py-2 text-sm", md: "px-6 py-3 text-base md:text-lg", lg: "px-8 py-4 text-lg md:text-xl" };
-
             return (
-                <button 
-                    onClick={handleInteract} disabled={disabled} 
-                    className={`pop-btn rounded-xl md:rounded-2xl font-black tracking-wider flex items-center justify-center gap-2 flex-shrink-0 ${styles[variant]} ${sizes[size]} ${fullWidth ? 'w-full' : ''} ${className}`}
-                >
-                    {icon && <i data-lucide={icon} className="w-5 h-5"></i>}
-                    <span className="whitespace-nowrap">{children}</span>
+                <button onClick={handleInteract} disabled={disabled} className={`pop-btn rounded-xl md:rounded-2xl font-black tracking-wider flex items-center justify-center gap-2 flex-shrink-0 ${styles[variant]} ${sizes[size]} ${fullWidth ? 'w-full' : ''} ${className}`}>
+                    {icon && <i data-lucide={icon} className="w-5 h-5"></i>}<span>{children}</span>
                 </button>
             );
         };
 
         // --- MAIN APP ---
         const App = () => {
-            // Net & User
             const [peer, setPeer] = useState(null);
             const [conn, setConn] = useState(null);
             const [myId, setMyId] = useState('');
@@ -371,7 +316,6 @@
             const [userName, setUserName] = useState('');
             const [oppName, setOppName] = useState('RIVAL');
             
-            // Flow & Game
             const [phase, setPhase] = useState('lobby'); 
             const [error, setError] = useState('');
             const [damageAlert, setDamageAlert] = useState(null);
@@ -384,7 +328,10 @@
             const [selectedTopic, setSelectedTopic] = useState(null);
             const [ngWords, setNgWords] = useState({ high: '', mid: '', low: '' });
             const [oppNgReady, setOppNgReady] = useState(false);
+            
             const [coinResult, setCoinResult] = useState(null);
+            const [coinRotation, setCoinRotation] = useState(0); // Coin Fix
+            
             const [history, setHistory] = useState([]);
             const [turn, setTurn] = useState('host');
             const [myHp, setMyHp] = useState(MAX_HP);
@@ -398,7 +345,6 @@
             const [isInputLocked, setIsInputLocked] = useState(false);
             const [isOpponentTyping, setIsOpponentTyping] = useState(false);
 
-            // Refs
             const stateRef = useRef({ phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName, turnStartTime, phaseStartTime, isMyTopicConfirmed, isOppTopicConfirmed, initialChar, isInputLocked });
             const connRef = useRef(null); 
             const scrollRef = useRef(null);
@@ -407,14 +353,24 @@
 
             useEffect(() => { stateRef.current = { phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName, turnStartTime, phaseStartTime, isMyTopicConfirmed, isOppTopicConfirmed, initialChar, isInputLocked }; }, [phase, turn, myHp, oppHp, history, isHost, myTopic, oppTopic, ngWords, oppNgReady, userName, turnStartTime, phaseStartTime, isMyTopicConfirmed, isOppTopicConfirmed, initialChar, isInputLocked]);
 
-            // --- PERSISTENCE ---
             useEffect(() => { const saved = localStorage.getItem('nwb_username'); if(saved) setUserName(saved); }, []);
             useEffect(() => { if(userName) localStorage.setItem('nwb_username', userName); }, [userName]);
-
-            // --- INIT ---
             useEffect(() => { if(window.lucide) window.lucide.createIcons(); });
             useEffect(() => { ParticleSystem.init(); }, []);
             useEffect(() => { if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [history, isOpponentTyping, phase]);
+            
+            // Coin Spin Logic Fix
+            useEffect(() => {
+                if (phase === 'coin' && coinResult) {
+                    setCoinRotation(0); // Reset
+                    // Slight delay to ensure DOM render before transition
+                    setTimeout(() => {
+                        // 5 full spins (1800) + target face
+                        setCoinRotation(coinResult === (isHost ? 'host' : 'guest') ? 1800 : 1980);
+                    }, 50);
+                }
+            }, [phase, coinResult, isHost]);
+
             useEffect(() => {
                 const id = generateId();
                 const p = new Peer(`KB-${id}`);
@@ -429,7 +385,6 @@
                return () => clearInterval(hb);
             }, []);
 
-            // --- TIMER LOOP ---
             useEffect(() => {
                 const loop = () => {
                     const s = stateRef.current;
@@ -459,7 +414,6 @@
                 return () => cancelAnimationFrame(loopRef.current);
             }, []);
 
-            // --- NETWORKING ---
             const connect = () => { 
                 if(!targetId || !peer) return; 
                 SoundEngine.init(); SoundEngine.play('confirm');
@@ -496,8 +450,7 @@
                         setCoinResult(data.result); setLastChar(data.initialChar); setInitialChar(data.initialChar); setPhase('coin');
                         setTimeout(() => { 
                             setPhase('playing'); setTurn(data.result); setHistory([]); 
-                            const startTime = Date.now() + TURN_ANIM_DURATION;
-                            setTurnStartTime(startTime);
+                            setTurnStartTime(Date.now() + TURN_ANIM_DURATION);
                             triggerTurnAnim(data.result === (isHost ? 'host' : 'guest') ? 'me' : 'rival', 0);
                         }, 4000);
                         break;
@@ -523,7 +476,6 @@
                 }
             };
 
-            // --- LOGIC ---
             const triggerTurnAnim = (who, delay) => {
                 setTimeout(() => { setTurnNotify(who); SoundEngine.play('turn'); setTimeout(() => setTurnNotify(null), 2000); }, delay);
             };
@@ -658,7 +610,7 @@
                 <div className="w-full h-[100dvh] bg-pattern relative overflow-hidden flex flex-col font-sans select-none">
                     {turnNotify && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none wipe-transition bg-black/40">
-                            <div className={`transform rotate-[-3deg] px-8 md:px-20 py-6 md:py-8 border-4 md:border-8 border-white shadow-2xl rounded-3xl animate-pop-in ${turnNotify === 'me' ? 'bg-[#0052FF]' : 'bg-[#FF005C]'}`}>
+                            <div className={`transform rotate-[-3deg] px-8 md:px-20 py-6 md:py-8 border-4 md:border-8 border-white shadow-2xl rounded-3xl animate-pop-in ${turnNotify === 'me' ? 'bg-blue-500' : 'bg-pink-500'}`}>
                                 <h1 className="text-4xl md:text-8xl font-black text-white italic font-pop drop-shadow-lg text-center">{turnNotify === 'me' ? 'YOUR TURN!' : 'RIVAL TURN!'}</h1>
                             </div>
                         </div>
@@ -682,9 +634,9 @@
                     {phase === 'lobby' && (
                         <div className="flex-1 flex flex-col items-center justify-center p-4 space-y-6 md:space-y-8 animate-pop-in overflow-y-auto">
                             <div className="text-center space-y-4 animate-title">
-                                <div className="bg-[#FFD600] text-slate-900 inline-block px-4 py-1 rounded-full font-black text-xs md:text-sm tracking-widest border-2 border-[#B09200] shadow-sm transform rotate-[-2deg]">KOTOBA STADIUM V3</div>
-                                <h1 className="text-5xl md:text-7xl font-black text-slate-800 font-pop tracking-tighter drop-shadow-sm leading-tight">
-                                    <span className="text-[#0052FF]">WORD</span><span className="text-slate-300 mx-1">×</span><span className="text-[#FF005C]">BATTLE</span>
+                                <div className="bg-yellow-400 text-slate-900 inline-block px-4 py-1 rounded-full font-black text-xs md:text-sm tracking-widest border-2 border-yellow-600 shadow-sm transform rotate-[-2deg]">KOTOBA STADIUM V4</div>
+                                <h1 className="text-3xl md:text-7xl font-black text-slate-800 font-pop tracking-tighter drop-shadow-sm leading-tight">
+                                    <span className="text-blue-500">WORD</span><span className="text-slate-300 mx-1">×</span><span className="text-pink-500">BATTLE</span>
                                 </h1>
                             </div>
                             <div className="pop-card p-6 w-full max-w-sm space-y-6">
@@ -709,14 +661,14 @@
 
                     {phase === 'vs' && (
                         <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col md:flex-row">
-                            <div className="flex-1 bg-[#0052FF] flex items-center justify-center relative overflow-hidden h-1/2 md:h-full">
-                                <div className="absolute inset-0 bg-[#0040D0] opacity-20 bg-pattern"></div>
-                                <div className="text-center z-10"><div className="text-blue-200 text-sm md:text-xl font-bold tracking-widest mb-2">CHALLENGER</div><div className="text-4xl md:text-6xl font-black text-white font-pop">{userName || 'YOU'}</div></div>
+                            <div className="flex-1 bg-blue-500 flex items-center justify-center relative overflow-hidden h-1/2 md:h-full">
+                                <div className="absolute inset-0 bg-blue-600 opacity-20 bg-pattern"></div>
+                                <div className="text-center z-10"><div className="text-blue-100 text-sm md:text-xl font-bold tracking-widest mb-2">CHALLENGER</div><div className="text-4xl md:text-6xl font-black text-white font-pop">{userName || 'YOU'}</div></div>
                             </div>
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none"><div className="text-6xl md:text-8xl font-black text-[#FFD600] font-pop italic drop-shadow-lg animate-pop-in">VS</div></div>
-                            <div className="flex-1 bg-[#FF005C] flex items-center justify-center relative overflow-hidden h-1/2 md:h-full">
-                                <div className="absolute inset-0 bg-[#D0004C] opacity-20 bg-pattern"></div>
-                                <div className="text-center z-10"><div className="text-pink-200 text-sm md:text-xl font-bold tracking-widest mb-2">RIVAL</div><div className="text-4xl md:text-6xl font-black text-white font-pop">{oppName}</div></div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none"><div className="text-6xl md:text-8xl font-black text-yellow-400 font-pop italic drop-shadow-lg animate-pop-in">VS</div></div>
+                            <div className="flex-1 bg-pink-500 flex items-center justify-center relative overflow-hidden h-1/2 md:h-full">
+                                <div className="absolute inset-0 bg-pink-600 opacity-20 bg-pattern"></div>
+                                <div className="text-center z-10"><div className="text-pink-100 text-sm md:text-xl font-bold tracking-widest mb-2">RIVAL</div><div className="text-4xl md:text-6xl font-black text-white font-pop">{oppName}</div></div>
                             </div>
                         </div>
                     )}
@@ -737,7 +689,7 @@
                     {phase === 'roulette' && (
                         <div className="fixed inset-0 z-50 bg-slate-900/95 flex flex-col items-center justify-center space-y-8">
                             <div className="text-white font-bold tracking-widest animate-pulse">BATTLE TOPIC</div>
-                            <div className="bg-white px-8 md:px-12 py-6 md:py-8 rounded-3xl border-8 border-[#FFD600] shadow-[0_0_50px_rgba(255,214,0,0.5)] transform scale-110 md:scale-125 mx-4"><div className="text-3xl md:text-6xl font-black text-slate-800 font-pop text-center min-w-[280px] break-keep">{rouletteDisplay}</div></div>
+                            <div className="bg-white px-8 md:px-12 py-6 md:py-8 rounded-3xl border-8 border-yellow-400 shadow-[0_0_50px_rgba(255,214,0,0.5)] transform scale-110 md:scale-125 mx-4"><div className="text-3xl md:text-6xl font-black text-slate-800 font-pop text-center min-w-[280px] break-keep">{rouletteDisplay}</div></div>
                         </div>
                     )}
 
@@ -749,7 +701,7 @@
                                     <div className="text-center animate-bounce-item"><div className="text-6xl mb-4">🤫</div><div className="font-bold text-slate-500">NGワードをセット中...</div></div>
                                 ) : (
                                     <div className="pop-card w-full max-w-md p-6 space-y-6 slide-up-enter">
-                                        <div className="flex justify-between items-center"><h2 className="font-black text-[#FF005C] text-lg md:text-xl">NGワードを仕掛けろ！</h2><div className="bg-pink-100 text-pink-600 px-3 py-1 rounded-lg font-mono font-bold">{displayTimer}</div></div>
+                                        <div className="flex justify-between items-center"><h2 className="font-black text-pink-500 text-lg md:text-xl">NGワードを仕掛けろ！</h2><div className="bg-pink-100 text-pink-600 px-3 py-1 rounded-lg font-mono font-bold">{displayTimer}</div></div>
                                         <div className="space-y-4">
                                             <div className="relative"><span className="absolute -left-2 top-1/2 -translate-y-1/2 -rotate-12 bg-red-600 text-white text-[10px] md:text-xs font-black px-2 py-1 rounded shadow z-10">3pt</span><input value={ngWords.high} onChange={e => setNgWords({...ngWords, high: toHiragana(e.target.value)})} className="pop-input w-full pl-12 pr-4 py-3 border-pink-200 focus:border-pink-500" placeholder="大ダメージ (ひらがな)" /></div>
                                             <div className="relative"><span className="absolute -left-2 top-1/2 -translate-y-1/2 -rotate-12 bg-orange-500 text-white text-[10px] md:text-xs font-black px-2 py-1 rounded shadow z-10">2pt</span><input value={ngWords.mid} onChange={e => setNgWords({...ngWords, mid: toHiragana(e.target.value)})} className="pop-input w-full pl-12 pr-4 py-3 border-orange-200 focus:border-orange-500" placeholder="中ダメージ (ひらがな)" /></div>
@@ -764,9 +716,9 @@
 
                     {phase === 'coin' && (
                         <div className="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center coin-scene">
-                             <div className="relative w-40 h-40 md:w-48 md:h-48 coin-3d" style={{ transform: coinResult === (isHost?'host':'guest') ? 'rotateY(1800deg)' : 'rotateY(1980deg)' }}>
-                                <div className="coin-face bg-[#0052FF] text-white font-black text-3xl">YOU</div>
-                                <div className="coin-face bg-[#FF005C] text-white font-black text-3xl" style={{ transform: 'rotateY(180deg)' }}>RIVAL</div>
+                             <div className="relative w-40 h-40 md:w-48 md:h-48 coin-3d" style={{ transform: `rotateY(${coinRotation}deg)` }}>
+                                <div className="coin-face bg-blue-500 text-white font-black text-3xl">YOU</div>
+                                <div className="coin-face bg-pink-500 text-white font-black text-3xl" style={{ transform: 'rotateY(180deg)' }}>RIVAL</div>
                              </div>
                         </div>
                     )}
@@ -775,16 +727,16 @@
                         <div className="flex flex-col h-[100dvh] bg-slate-50 pb-safe">
                             <div className="bg-white shadow-md z-20 flex justify-between items-center h-16 md:h-20 border-b-4 border-slate-100 shrink-0 px-2 md:px-4">
                                 <div className="flex-1 flex flex-col justify-center items-start">
-                                    <div className="text-[10px] md:text-xs font-bold text-[#FF005C] mb-1 flex items-center gap-1 truncate max-w-[100px]"><i data-lucide="swords" className="w-3 h-3"></i> {oppName}</div>
-                                    <div className="flex gap-1">{[...Array(MAX_HP)].map((_, i) => (<div key={i} className={`w-4 h-6 md:w-6 md:h-8 rounded-sm transition-all duration-300 ${i < oppHp ? 'bg-[#FF005C] shadow-[0_2px_0_#9D174D]' : 'bg-slate-200 translate-y-1'}`}></div>))}</div>
+                                    <div className="text-[10px] md:text-xs font-bold text-pink-500 mb-1 flex items-center gap-1 truncate max-w-[100px]"><i data-lucide="swords" className="w-3 h-3"></i> {oppName}</div>
+                                    <div className="flex gap-1">{[...Array(MAX_HP)].map((_, i) => (<div key={i} className={`w-4 h-6 md:w-6 md:h-8 rounded-sm transition-all duration-300 ${i < oppHp ? 'bg-pink-500 shadow-[0_2px_0_#db2777]' : 'bg-slate-200 translate-y-1'}`}></div>))}</div>
                                 </div>
                                 <div className="flex flex-col items-center justify-center w-20 md:w-24 relative">
                                     <div className="absolute -top-1 md:-top-2 bg-slate-800 text-white text-[9px] md:text-[10px] px-2 py-1 rounded-b-lg font-bold shadow-sm whitespace-nowrap overflow-hidden max-w-[120px] text-ellipsis">{selectedTopic?.text}</div>
                                     <div className={`text-3xl md:text-4xl font-black font-mono mt-3 md:mt-2 ${displayTimer <= 10 ? 'text-red-500 animate-pulse' : 'text-slate-800'}`}>{isInputLocked ? '--' : displayTimer}</div>
                                 </div>
                                 <div className="flex-1 flex flex-col justify-center items-end">
-                                    <div className="text-[10px] md:text-xs font-bold text-[#0052FF] mb-1 flex items-center gap-1 truncate max-w-[100px]">{userName} <i data-lucide="shield" className="w-3 h-3"></i></div>
-                                    <div className="flex gap-1">{[...Array(MAX_HP)].map((_, i) => (<div key={i} className={`w-4 h-6 md:w-6 md:h-8 rounded-sm transition-all duration-300 ${i < myHp ? 'bg-[#0052FF] shadow-[0_2px_0_#1E40AF]' : 'bg-slate-200 translate-y-1'}`}></div>))}</div>
+                                    <div className="text-[10px] md:text-xs font-bold text-blue-500 mb-1 flex items-center gap-1 truncate max-w-[100px]">{userName} <i data-lucide="shield" className="w-3 h-3"></i></div>
+                                    <div className="flex gap-1">{[...Array(MAX_HP)].map((_, i) => (<div key={i} className={`w-4 h-6 md:w-6 md:h-8 rounded-sm transition-all duration-300 ${i < myHp ? 'bg-blue-500 shadow-[0_2px_0_#2563eb]' : 'bg-slate-200 translate-y-1'}`}></div>))}</div>
                                 </div>
                             </div>
                             <div className="bg-slate-100 py-1 px-4 flex justify-center gap-2 border-b border-slate-200 shrink-0 overflow-x-auto scrollbar-hide">
@@ -797,8 +749,8 @@
                                     const isMine = h.owner === (isHost?'host':'guest');
                                     return (
                                         <div key={i} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-pop-in`}>
-                                            <div className={`relative max-w-[85%] px-4 py-2 md:px-5 md:py-3 rounded-2xl font-bold text-base md:text-lg shadow-sm border-b-4 ${isMine ? 'bg-[#0052FF] border-[#0030A0] text-white rounded-tr-none' : 'bg-white border-slate-300 text-slate-800 rounded-tl-none'} ${h.damage > 0 ? 'animate-shake !bg-[#FF005C] !border-[#A0003A] !text-white' : ''}`}>
-                                                {h.word}{h.damage > 0 && <span className="absolute -top-2 -right-2 bg-[#FFD600] text-slate-900 text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm border border-yellow-200">HIT!</span>}
+                                            <div className={`relative max-w-[85%] px-4 py-2 md:px-5 md:py-3 rounded-2xl font-bold text-base md:text-lg shadow-sm border-b-4 ${isMine ? 'bg-blue-500 border-blue-700 text-white rounded-tr-none' : 'bg-white border-slate-300 text-slate-800 rounded-tl-none'} ${h.damage > 0 ? 'animate-shake !bg-pink-500 !border-pink-700 !text-white' : ''}`}>
+                                                {h.word}{h.damage > 0 && <span className="absolute -top-2 -right-2 bg-yellow-400 text-slate-900 text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm border border-yellow-200">HIT!</span>}
                                             </div>
                                         </div>
                                     )
@@ -809,7 +761,7 @@
                             <div className="bg-white/95 backdrop-blur p-3 md:p-4 border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-30 shrink-0">
                                 <div className="flex justify-between items-center mb-2 px-1">
                                     <div className="text-xs font-bold text-slate-400 flex items-center gap-1">NEXT: <span className="bg-slate-800 text-white w-6 h-6 flex items-center justify-center rounded font-pop">{lastChar || initialChar}</span></div>
-                                    <div className={`text-xs font-black tracking-wider ${isMyTurn && !isInputLocked ? 'text-[#0052FF] animate-pulse' : 'text-slate-300'}`}>{isMyTurn && !isInputLocked ? 'あなたの番です' : '相手の番です'}</div>
+                                    <div className={`text-xs font-black tracking-wider ${isMyTurn && !isInputLocked ? 'text-blue-500 animate-pulse' : 'text-slate-300'}`}>{isMyTurn && !isInputLocked ? 'あなたの番です' : '相手の番です'}</div>
                                 </div>
                                 <div className="flex gap-2">
                                     <input value={input} onChange={e => { setInput(e.target.value); send({ type: 'TYPING', isTyping: true }); }} onBlur={() => send({ type: 'TYPING', isTyping: false })} onKeyDown={e => e.key==='Enter' && !isInputLocked && submitWord()} disabled={!isMyTurn || isInputLocked} className="pop-input flex-fix-input px-4 py-3 text-base bg-slate-50 disabled:bg-slate-100 disabled:opacity-50 text-slate-800" placeholder={isMyTurn ? `${lastChar || initialChar} からはじまる言葉` : "待機中..."} />
@@ -820,11 +772,11 @@
                                 <div className="fixed inset-0 z-[100] bg-slate-900/90 flex flex-col items-center justify-center animate-pop-in space-y-8 p-4">
                                     <div className="text-center relative">
                                         <div className="text-sm text-slate-400 font-bold tracking-[0.5em] mb-4">GAME SET</div>
-                                        <h1 className={`text-6xl md:text-9xl font-black font-pop italic transform -rotate-6 drop-shadow-[0_10px_0_rgba(0,0,0,0.5)] ${myHp > 0 ? 'text-[#FFD600]' : 'text-slate-600'}`}>{myHp > 0 ? 'WIN!' : 'LOSE...'}</h1>
-                                        {myHp > 0 && <div className="absolute -top-10 -right-10 text-4xl animate-bounce-item">👑</div>}
+                                        <h1 className={`text-6xl md:text-9xl font-black font-pop italic transform -rotate-6 drop-shadow-[0_10px_0_rgba(0,0,0,0.5)] ${myHp > 0 ? 'text-yellow-400' : 'text-slate-600'}`}>{myHp > 0 ? 'WIN!' : 'LOSE...'}</h1>
+                                        {myHp > 0 && <div className="absolute -top-10 -right-10 text-4xl animate-float-title">👑</div>}
                                     </div>
                                     <div className="bg-white p-6 md:p-8 rounded-3xl text-center w-full max-w-sm shadow-2xl">
-                                        <div className="grid grid-cols-2 gap-4 md:gap-8 mb-6"><div><div className="text-xs font-bold text-slate-400 mb-1">YOU</div><div className="text-3xl md:text-4xl font-black text-[#0052FF] font-mono">{myHp}</div></div><div><div className="text-xs font-bold text-slate-400 mb-1">RIVAL</div><div className="text-3xl md:text-4xl font-black text-[#FF005C] font-mono">{oppHp}</div></div></div>
+                                        <div className="grid grid-cols-2 gap-4 md:gap-8 mb-6"><div><div className="text-xs font-bold text-slate-400 mb-1">YOU</div><div className="text-3xl md:text-4xl font-black text-blue-500 font-mono">{myHp}</div></div><div><div className="text-xs font-bold text-slate-400 mb-1">RIVAL</div><div className="text-3xl md:text-4xl font-black text-pink-500 font-mono">{oppHp}</div></div></div>
                                         <Button onClick={handleRematch} variant="primary" size="lg" icon="rotate-cw" fullWidth>もう一度遊ぶ</Button>
                                     </div>
                                 </div>
