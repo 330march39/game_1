@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>ナンプレ</title>
   <!-- React, ReactDOM, and Babel -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -10,7 +10,27 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          screens: {
+            'landscape': {'raw': '(orientation: landscape)'},
+            'short': {'raw': '(max-height: 600px)'}
+          }
+        }
+      }
+    }
+  </script>
   <style>
+    /* セーフエリア対応 */
+    @supports (padding-top: env(safe-area-inset-top)) {
+      .pt-safe { padding-top: env(safe-area-inset-top); }
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+      .pl-safe { padding-left: env(safe-area-inset-left); }
+      .pr-safe { padding-right: env(safe-area-inset-right); }
+    }
+
     /* カスタムアニメーション定義 */
     @keyframes shake {
       0%, 100% { transform: translateX(0); }
@@ -42,14 +62,72 @@
       from { opacity: 0; }
       to { opacity: 1; }
     }
-    /* 全体の選択防止 */
-    body {
+    
+    /* 全体の選択防止と固定 */
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden; /* スクロール禁止 */
       overscroll-behavior: none;
       -webkit-user-select: none;
       -moz-user-select: none;
       -ms-user-select: none;
       user-select: none;
-      font-feature-settings: "tnum";
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      position: fixed; /* iOSでのバウンス防止 */
+      top: 0;
+      left: 0;
+    }
+    #root {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* スクロールバーのカスタマイズ */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* ボードのアスペクト比維持と最大化のためのクラス */
+    .board-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 4px; /* 最小限のパディング */
+    }
+    .sudoku-board {
+      /* 短辺に合わせて最大化しつつアスペクト比1:1を維持 */
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      aspect-ratio: 1 / 1;
+      /* フォールバック: aspect-ratio未対応環境用 */
+      @media (orientation: landscape) {
+        height: 100%;
+        width: 100vh; /* アスペクト比近似 */
+      }
+      @media (orientation: portrait) {
+        width: 100%;
+        height: 100vw; /* アスペクト比近似 */
+      }
     }
   </style>
 </head>
@@ -57,7 +135,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useCallback } = React;
+    const { useState, useEffect, useCallback, useRef } = React;
 
     /**
      * --- ICONS ---
@@ -240,91 +318,109 @@
       const [showRules, setShowRules] = useState(false);
 
       return (
-        <div className="flex flex-col items-center justify-center h-full p-6 text-center animate-fade-in w-full max-w-md mx-auto relative select-none">
-          
-          <button 
-            onClick={() => setShowRules(true)}
-            className="absolute top-4 right-4 text-indigo-400 hover:text-indigo-600 transition-colors p-2"
-            aria-label="ルール説明"
-          >
-            <HelpCircle size={32} />
-          </button>
+        <div className="flex flex-col items-center justify-center h-full w-full overflow-y-auto overflow-x-hidden p-4 pt-safe pb-safe">
+          <div className="w-full max-w-md mx-auto relative select-none flex flex-col items-center py-8">
+            
+            <button 
+              onClick={() => setShowRules(true)}
+              className="absolute top-4 right-0 text-indigo-400 hover:text-indigo-600 transition-colors p-2 z-10"
+              aria-label="ルール説明"
+            >
+              <HelpCircle size={32} />
+            </button>
 
-          <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-pink-500 tracking-tighter mb-2 drop-shadow-sm select-none">
-            ナンプレ
-          </h1>
-          <p className="text-slate-400 font-bold mb-10 tracking-widest text-sm select-none">SUDOKU PUZZLE</p>
-          
-          <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-xl mb-8 w-full border border-white/60">
-            <h2 className="text-lg font-bold text-slate-700 mb-4 flex items-center justify-center gap-2">
-              <Trophy size={20} className="text-yellow-500" /> ベストタイム
-            </h2>
-            <div className="grid grid-cols-3 gap-3 text-sm">
-              <div className="flex flex-col items-center p-3 bg-green-50 rounded-2xl border border-green-100">
-                <span className="text-green-600 font-bold text-xs mb-1">やさしい</span>
-                <span className="font-bold text-slate-700 text-lg tabular-nums">{bestTimes.easy ? formatTime(bestTimes.easy) : '--:--'}</span>
-              </div>
-              <div className="flex flex-col items-center p-3 bg-yellow-50 rounded-2xl border border-yellow-100">
-                <span className="text-yellow-600 font-bold text-xs mb-1">ふつう</span>
-                <span className="font-bold text-slate-700 text-lg tabular-nums">{bestTimes.medium ? formatTime(bestTimes.medium) : '--:--'}</span>
-              </div>
-              <div className="flex flex-col items-center p-3 bg-red-50 rounded-2xl border border-red-100">
-                <span className="text-red-600 font-bold text-xs mb-1">むずかしい</span>
-                <span className="font-bold text-slate-700 text-lg tabular-nums">{bestTimes.hard ? formatTime(bestTimes.hard) : '--:--'}</span>
+            <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-pink-500 tracking-tighter mb-2 drop-shadow-sm select-none">
+              ナンプレ
+            </h1>
+            <p className="text-slate-400 font-bold mb-8 tracking-widest text-sm select-none">NUMBER PUZZLE</p>
+            
+            <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-xl mb-8 w-full border border-white/60">
+              <h2 className="text-lg font-bold text-slate-700 mb-4 flex items-center justify-center gap-2">
+                <Trophy size={20} className="text-yellow-500" /> ベストタイム
+              </h2>
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="flex flex-col items-center p-2 sm:p-3 bg-green-50 rounded-2xl border border-green-100">
+                  <span className="text-green-600 font-bold text-xs mb-1">やさしい</span>
+                  <span className="font-bold text-slate-700 text-base sm:text-lg tabular-nums">{bestTimes.easy ? formatTime(bestTimes.easy) : '--:--'}</span>
+                </div>
+                <div className="flex flex-col items-center p-2 sm:p-3 bg-yellow-50 rounded-2xl border border-yellow-100">
+                  <span className="text-yellow-600 font-bold text-xs mb-1">ふつう</span>
+                  <span className="font-bold text-slate-700 text-base sm:text-lg tabular-nums">{bestTimes.medium ? formatTime(bestTimes.medium) : '--:--'}</span>
+                </div>
+                <div className="flex flex-col items-center p-2 sm:p-3 bg-red-50 rounded-2xl border border-red-100">
+                  <span className="text-red-600 font-bold text-xs mb-1">むずかしい</span>
+                  <span className="font-bold text-slate-700 text-base sm:text-lg tabular-nums">{bestTimes.hard ? formatTime(bestTimes.hard) : '--:--'}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <h3 className="text-lg font-bold text-slate-700 mb-4">難易度を選んでスタート</h3>
-          <div className="flex flex-col gap-3 w-full">
-            <button onClick={() => onStart('easy')} className="bg-gradient-to-r from-green-400 to-green-500 hover:from-green-500 hover:to-green-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-green-200 transition-all hover:scale-[1.02] active:scale-95 text-lg flex items-center justify-center gap-2">
-              やさしい
-            </button>
-            <button onClick={() => onStart('medium')} className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-yellow-200 transition-all hover:scale-[1.02] active:scale-95 text-lg flex items-center justify-center gap-2">
-              ふつう
-            </button>
-            <button onClick={() => onStart('hard')} className="bg-gradient-to-r from-rose-400 to-rose-500 hover:from-rose-500 hover:to-rose-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-rose-200 transition-all hover:scale-[1.02] active:scale-95 text-lg flex items-center justify-center gap-2">
-              むずかしい
-            </button>
-          </div>
-
-          {/* Rules Modal */}
-          {showRules && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
-              <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm rounded-3xl" onClick={() => setShowRules(false)}></div>
-              <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl relative z-10 animate-pop">
-                <button 
-                  onClick={() => setShowRules(false)}
-                  className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
-                >
-                  <X size={24} />
-                </button>
-                <h2 className="text-2xl font-bold text-indigo-600 mb-6 flex items-center gap-2">
-                  <HelpCircle size={28} /> ルール
-                </h2>
-                <ul className="text-left space-y-4 text-slate-600 font-medium">
-                  <li className="flex gap-3">
-                    <span className="bg-indigo-100 text-indigo-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</span>
-                    <span>空いているマスに <span className="text-indigo-600 font-bold">1〜9</span> の数字を入れます。</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="bg-indigo-100 text-indigo-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</span>
-                    <span>縦・横の列、太枠の3×3ブロック内で数字が <span className="text-indigo-600 font-bold">重複してはいけません</span>。</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="bg-indigo-100 text-indigo-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
-                    <span><span className="text-rose-500 font-bold">3回ミス</span>するとゲームオーバー！</span>
-                  </li>
-                </ul>
-                <button 
-                  onClick={() => setShowRules(false)}
-                  className="mt-8 bg-indigo-600 text-white py-3 px-6 rounded-xl font-bold w-full hover:bg-indigo-700 transition-colors"
-                >
-                  わかった！
-                </button>
-              </div>
+            <h3 className="text-lg font-bold text-slate-700 mb-4">難易度を選んでスタート</h3>
+            <div className="flex flex-col gap-3 w-full">
+              <button onClick={() => onStart('easy')} className="bg-gradient-to-r from-green-400 to-green-500 hover:from-green-500 hover:to-green-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-green-200 transition-all hover:scale-[1.02] active:scale-95 text-lg flex items-center justify-center gap-2">
+                やさしい
+              </button>
+              <button onClick={() => onStart('medium')} className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-yellow-200 transition-all hover:scale-[1.02] active:scale-95 text-lg flex items-center justify-center gap-2">
+                ふつう
+              </button>
+              <button onClick={() => onStart('hard')} className="bg-gradient-to-r from-rose-400 to-rose-500 hover:from-rose-500 hover:to-rose-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-rose-200 transition-all hover:scale-[1.02] active:scale-95 text-lg flex items-center justify-center gap-2">
+                むずかしい
+              </button>
             </div>
-          )}
+
+            {/* Rules Modal */}
+            {showRules && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowRules(false)}></div>
+                <div className="bg-white rounded-3xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl relative z-10 animate-pop flex flex-col">
+                  <button 
+                    onClick={() => setShowRules(false)}
+                    className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 z-20"
+                  >
+                    <X size={24} />
+                  </button>
+                  <h2 className="text-2xl font-bold text-indigo-600 mb-6 flex items-center gap-2 shrink-0">
+                    <HelpCircle size={28} /> ルール
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto p-1">
+                    <ul className="text-left space-y-4 text-slate-600 font-medium">
+                        <li className="flex gap-3">
+                          <span className="bg-indigo-100 text-indigo-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</span>
+                          <span>空いているマスに <span className="text-indigo-600 font-bold">1〜9</span> の数字を入れます。</span>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="bg-indigo-100 text-indigo-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</span>
+                          <span>縦・横の列、太枠の3×3ブロック内で数字が <span className="text-indigo-600 font-bold">重複してはいけません</span>。</span>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="bg-indigo-100 text-indigo-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
+                          <span><span className="text-rose-500 font-bold">3回ミス</span>するとゲームオーバー！</span>
+                        </li>
+                    </ul>
+                    <div className="bg-indigo-50 rounded-xl p-4 flex flex-col justify-center items-center text-center text-sm text-indigo-400">
+                        <div className="grid grid-cols-3 gap-1 mb-2 border-2 border-indigo-200 p-1 bg-white rounded">
+                            <div className="w-6 h-6 bg-indigo-100 rounded flex items-center justify-center font-bold text-indigo-600">1</div>
+                            <div className="w-6 h-6 bg-white rounded border border-slate-100"></div>
+                            <div className="w-6 h-6 bg-white rounded border border-slate-100"></div>
+                            <div className="w-6 h-6 bg-white rounded border border-slate-100"></div>
+                            <div className="w-6 h-6 bg-indigo-100 rounded flex items-center justify-center font-bold text-indigo-600">2</div>
+                            <div className="w-6 h-6 bg-white rounded border border-slate-100"></div>
+                            <div className="w-6 h-6 bg-white rounded border border-slate-100"></div>
+                            <div className="w-6 h-6 bg-white rounded border border-slate-100"></div>
+                            <div className="w-6 h-6 bg-indigo-100 rounded flex items-center justify-center font-bold text-indigo-600">3</div>
+                        </div>
+                        <p>重複なしで埋めよう！</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setShowRules(false)}
+                    className="mt-6 bg-indigo-600 text-white py-3 px-6 rounded-xl font-bold w-full hover:bg-indigo-700 transition-colors shrink-0"
+                  >
+                    わかった！
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       );
     };
@@ -439,6 +535,7 @@
           } else if (e.key === 'Backspace' || e.key === 'Delete') {
             handleNumberInput(0);
           } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+            e.preventDefault(); // 矢印キーでのスクロール防止
             if (!selected) {
               setSelected({ r: 0, c: 0 });
               return;
@@ -474,8 +571,14 @@
         const isRelated = selected && (selected.r === r || selected.c === c || 
           (Math.floor(selected.r/3) === Math.floor(r/3) && Math.floor(selected.c/3) === Math.floor(c/3)));
         
-        let base = "w-full h-full flex items-center justify-center text-xl sm:text-2xl font-bold cursor-pointer transition-all duration-200 select-none relative ";
+        let base = "w-full h-full flex items-center justify-center font-bold cursor-pointer transition-all duration-75 select-none relative ";
         
+        // vminを使用して画面サイズに追従させる
+        // 9マスで割るので1マスあたり10vmin程度が目安
+        const textSize = {
+            fontSize: 'min(5vh, 5vw)', // コンテナクエリの代わりとしてvmin的な挙動を期待
+        };
+
         let border = "border border-slate-300 ";
         if (c % 3 === 2 && c !== 8) border += "border-r-2 border-r-indigo-400 ";
         if (r % 3 === 2 && r !== 8) border += "border-b-2 border-b-indigo-400 ";
@@ -496,7 +599,7 @@
         if (shakeCell === `${r}-${c}`) base += "animate-shake bg-red-100 ";
         if (popCell === `${r}-${c}`) base += "animate-pop ";
 
-        return base + border + color;
+        return { className: base + border + color, style: textSize };
       };
 
       const handleQuit = () => {
@@ -512,24 +615,94 @@
         setShowQuitConfirm(false);
       };
 
+      // --- サイドバーコンポーネント (PC/Landscape共通) ---
+      const InfoPanel = ({ className }) => (
+        <div className={`flex flex-col bg-slate-50 border-r border-slate-200 items-center justify-between shrink-0 h-full py-4 px-2 overflow-y-auto ${className}`}>
+          <div className="w-full flex flex-col gap-4">
+            <button 
+               onClick={handleQuit}
+               className="flex items-center justify-center gap-2 text-slate-500 hover:text-indigo-600 font-bold transition-colors w-full p-2 hover:bg-white rounded-xl mb-2"
+             >
+               <ArrowLeft size={18} /> <span className="text-sm font-bold">タイトルへ</span>
+             </button>
+             
+             <div className="w-full bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center gap-1">
+               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">LEVEL</span>
+               <span className={`text-sm font-bold px-3 py-1 rounded-full ${difficulty === 'easy' ? 'bg-green-100 text-green-600' : difficulty === 'medium' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'}`}>
+                 {difficulty === 'easy' ? 'やさしい' : difficulty === 'medium' ? 'ふつう' : 'むずかしい'}
+               </span>
+             </div>
+
+             <div className="w-full bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center gap-1">
+               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TIME</span>
+               <div className="flex items-center gap-1 text-indigo-900 text-xl font-bold tabular-nums">
+                 <Clock size={18} className="text-indigo-400" />
+                 {formatTime(timer)}
+               </div>
+             </div>
+
+             <div className="w-full bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center gap-1">
+               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">LIFE</span>
+               <div className="flex gap-1">
+                 {[...Array(3)].map((_, i) => (
+                   <Heart key={i} size={20} className={i < 3 - mistakes ? "text-rose-500 fill-rose-500" : "text-slate-200 fill-slate-200"} />
+                 ))}
+               </div>
+             </div>
+          </div>
+          <div className="text-[10px] text-slate-300 font-bold tracking-widest mt-2">NANPRE</div>
+        </div>
+      );
+
+      // --- テンキーコンポーネント (PC/Landscape共通) ---
+      const NumberPad = ({ className, buttonClass }) => (
+        <div className={`flex flex-col bg-white border-l border-slate-200 p-2 items-center justify-center shrink-0 h-full overflow-y-auto ${className}`}>
+           <div className="grid grid-cols-2 gap-2 w-full max-w-[160px]">
+             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => {
+                const completed = isNumberComplete(num);
+                if (completed) return <div key={num} className="aspect-square flex items-center justify-center text-slate-200 font-bold text-lg select-none bg-slate-50 rounded-xl border border-slate-100">✓</div>;
+                return (
+                 <button
+                   key={num}
+                   onClick={() => handleNumberInput(num)}
+                   className={`aspect-square bg-white border-b-4 border-indigo-100 active:border-b-0 active:translate-y-[2px] hover:bg-indigo-50 text-indigo-600 font-bold text-2xl rounded-xl transition-all shadow-sm border border-indigo-200 flex items-center justify-center ${buttonClass}`}
+                 >
+                   {num}
+                 </button>
+                );
+             })}
+              <button
+               onClick={() => handleNumberInput(0)}
+               className={`aspect-square bg-slate-100 border-b-4 border-slate-200 active:border-b-0 active:translate-y-[2px] hover:bg-slate-200 text-slate-500 font-bold rounded-xl transition-all flex items-center justify-center col-span-1 ${buttonClass}`}
+             >
+               <Eraser size={24} />
+             </button>
+           </div>
+        </div>
+      );
+
       return (
         <div className="fixed inset-0 bg-slate-100 flex items-center justify-center font-sans text-slate-800 overflow-hidden select-none">
           
-          <div className="w-full h-full sm:h-auto sm:max-h-[95vh] md:max-w-4xl sm:rounded-3xl sm:shadow-2xl sm:border sm:border-slate-200 bg-white flex flex-col relative overflow-hidden">
+          <div className="w-full h-full bg-white flex flex-col relative overflow-hidden">
             
             {!isGameStarted ? (
               <StartScreen onStart={startGame} bestTimes={bestTimes} />
             ) : (
-              <div className="flex flex-col md:flex-row h-full">
-                {/* --- Left Panel / Header (Mobile) --- */}
-                {/* Mobile Header */}
-                <div className="md:hidden px-4 pt-3 pb-2 bg-white flex items-center justify-between border-b border-slate-100 shrink-0">
+              // -----------------------------------------------------------------------
+              // メインゲームレイアウト
+              // -----------------------------------------------------------------------
+              <div className="flex flex-col landscape:flex-row md:flex-row h-full w-full overflow-hidden pt-safe pb-safe pl-safe pr-safe">
+
+                {/* --- 1. 左カラム (Info) --- */}
+                {/* Mobile Portrait: Header (Top) */}
+                <div className="landscape:hidden md:hidden px-4 pt-3 pb-2 bg-white flex items-center justify-between border-b border-slate-100 shrink-0 z-20">
                   <div className="flex items-center gap-3">
                     <button 
                        onClick={handleQuit}
                        className="p-2 -ml-2 rounded-full text-slate-500 hover:bg-slate-100 transition-colors flex items-center gap-1 font-bold text-sm"
                      >
-                       <ArrowLeft size={20} /> タイトルへ
+                       <ArrowLeft size={20} />
                      </button>
                      <div className="h-6 w-px bg-slate-200"></div>
                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${difficulty === 'easy' ? 'bg-green-100 text-green-600' : difficulty === 'medium' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'}`}>
@@ -549,67 +722,45 @@
                   </div>
                 </div>
 
-                {/* PC Left Side Bar */}
-                <div className="hidden md:flex flex-col w-48 bg-slate-50 border-r border-slate-200 p-6 items-center justify-between shrink-0">
-                  <div className="w-full flex flex-col gap-6">
-                    <button 
-                       onClick={handleQuit}
-                       className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold transition-colors w-full p-2 hover:bg-white rounded-xl"
-                     >
-                       <ArrowLeft size={20} /> タイトルへ
-                     </button>
-                     
-                     <div className="w-full bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center gap-2">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">LEVEL</span>
-                        <span className={`text-sm font-bold px-3 py-1 rounded-full ${difficulty === 'easy' ? 'bg-green-100 text-green-600' : difficulty === 'medium' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'}`}>
-                          {difficulty === 'easy' ? 'やさしい' : difficulty === 'medium' ? 'ふつう' : 'むずかしい'}
-                        </span>
-                     </div>
-
-                     <div className="w-full bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center gap-2">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">TIME</span>
-                        <div className="flex items-center gap-2 text-indigo-900 text-xl font-bold tabular-nums">
-                          <Clock size={20} className="text-indigo-400" />
-                          {formatTime(timer)}
-                        </div>
-                     </div>
-
-                     <div className="w-full bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center gap-2">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">LIFE</span>
-                        <div className="flex gap-1">
-                          {[...Array(3)].map((_, i) => (
-                            <Heart key={i} size={20} className={i < 3 - mistakes ? "text-rose-500 fill-rose-500" : "text-slate-200 fill-slate-200"} />
-                          ))}
-                        </div>
-                     </div>
-                  </div>
-                  <div className="text-xs text-slate-300 font-bold tracking-widest">SUDOKU</div>
-                </div>
+                {/* PC / Landscape Mobile: Left Sidebar */}
+                <InfoPanel className="hidden landscape:flex md:flex w-40 shrink-0" />
 
 
-                {/* --- Center Panel (Board) --- */}
-                <div className="flex-grow flex flex-col items-center justify-center p-2 bg-slate-50 w-full overflow-hidden relative">
-                   {/* Board */}
-                  <div className="w-full max-w-[500px] md:max-w-[560px] aspect-square bg-white rounded-lg shadow-lg border-2 border-indigo-500 grid grid-rows-9">
+                {/* --- 2. 中央カラム (Board) --- */}
+                {/* board-container: フレックスボックスで中央配置し、paddingを最小限に設定
+                  sudoku-board: アスペクト比1:1を維持しつつ、コンテナ内で最大化（object-containのような挙動）
+                */}
+                <div className="flex-grow bg-slate-50 relative overflow-hidden board-container">
+                  <div className="sudoku-board shadow-lg rounded-lg overflow-hidden border-2 border-indigo-500 bg-white grid grid-rows-9">
                     {board.map((row, r) => (
                       <div key={r} className="grid grid-cols-9 h-full">
-                        {row.map((val, c) => (
-                          <div 
-                            key={`${r}-${c}`} 
-                            className={getCellClass(r, c, val)}
-                            onClick={() => setSelected({ r, c })}
-                          >
-                            {val !== 0 ? val : ''}
-                          </div>
-                        ))}
+                        {row.map((val, c) => {
+                          const cell = getCellClass(r, c, val);
+                          return (
+                            <div 
+                              key={`${r}-${c}`} 
+                              className={cell.className}
+                              style={cell.style}
+                              onClick={() => setSelected({ r, c })}
+                            >
+                              {/* min-w-0 min-h-0: グリッドセルが中身によって拡張されるのを防ぐ 
+                                flex items-center justify-center: 数字を中央配置
+                              */}
+                              <div className="w-full h-full min-w-0 min-h-0 flex items-center justify-center">
+                                {val !== 0 ? val : ''}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* --- Right Panel / Footer (Input) --- */}
-                {/* Mobile Footer */}
-                <div className="md:hidden px-4 py-4 bg-white border-t border-slate-100 shrink-0 pb-safe">
+
+                {/* --- 3. 右カラム (Input) --- */}
+                {/* Mobile Portrait: Footer (Bottom) */}
+                <div className="landscape:hidden md:hidden px-4 py-4 bg-white border-t border-slate-100 shrink-0 pb-safe z-20">
                   <div className="grid grid-cols-5 gap-2 sm:gap-4 max-w-[500px] mx-auto">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => {
                       const completed = isNumberComplete(num);
@@ -622,30 +773,8 @@
                   </div>
                 </div>
 
-                {/* PC Right Sidebar */}
-                <div className="hidden md:flex flex-col w-48 bg-white border-l border-slate-200 p-6 items-center justify-center shrink-0">
-                  <div className="grid grid-cols-2 gap-3 w-full">
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => {
-                       const completed = isNumberComplete(num);
-                       if (completed) return <div key={num} className="aspect-square flex items-center justify-center text-slate-200 font-bold text-lg select-none bg-slate-50 rounded-xl border border-slate-100">✓</div>;
-                       return (
-                        <button
-                          key={num}
-                          onClick={() => handleNumberInput(num)}
-                          className="aspect-square bg-white border-b-4 border-indigo-100 active:border-b-0 active:translate-y-[2px] hover:bg-indigo-50 text-indigo-600 font-bold text-2xl rounded-xl transition-all shadow-sm border border-indigo-200 flex items-center justify-center"
-                        >
-                          {num}
-                        </button>
-                       );
-                    })}
-                     <button
-                      onClick={() => handleNumberInput(0)}
-                      className="aspect-square bg-slate-100 border-b-4 border-slate-200 active:border-b-0 active:translate-y-[2px] hover:bg-slate-200 text-slate-500 font-bold rounded-xl transition-all flex items-center justify-center col-span-1"
-                    >
-                      <Eraser size={24} />
-                    </button>
-                  </div>
-                </div>
+                {/* PC / Landscape Mobile: Right Sidebar */}
+                <NumberPad className="hidden landscape:flex md:flex w-40 shrink-0" />
 
               </div>
             )}
