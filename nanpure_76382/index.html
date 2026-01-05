@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pop Sudoku</title>
+  <!-- React, ReactDOM, and Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* カスタムアニメーション定義 */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+    .animate-shake {
+      animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+    }
+    @keyframes pop {
+      0% { transform: scale(0.8); opacity: 0.5; }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-pop {
+      animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes confetti {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+    .animate-confetti {
+      animation: confetti 3s ease-out forwards;
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.3s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    /* 追加: アイコン回転アニメーション用 */
+    .animate-spin-slow {
+      animation: spin 3s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    /**
+     * --- ICONS (Inline SVG Components to avoid external dependency errors) ---
+     */
+    const IconBase = ({ size = 24, className = "", children }) => (
+      <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width={size} 
+        height={size} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className={className}
+      >
+        {children}
+      </svg>
+    );
+
+    const RefreshCw = (props) => (
+      <IconBase {...props}>
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+        <path d="M21 3v5h-5"/>
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+        <path d="M8 16H3v5"/>
+      </IconBase>
+    );
+
+    const Trophy = (props) => (
+      <IconBase {...props}>
+        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+        <path d="M4 22h16"/>
+        <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+        <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+      </IconBase>
+    );
+
+    const Eraser = (props) => (
+      <IconBase {...props}>
+        <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/>
+        <path d="M22 21H7"/>
+        <path d="m5 11 9 9"/>
+      </IconBase>
+    );
+
+    const Settings = (props) => (
+      <IconBase {...props}>
+        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+        <circle cx="12" cy="12" r="3"/>
+      </IconBase>
+    );
+
+    const Play = (props) => (
+      <IconBase {...props}>
+        <polygon points="5 3 19 12 5 21 5 3"/>
+      </IconBase>
+    );
+
+    const Pause = (props) => (
+      <IconBase {...props}>
+        <rect x="6" y="4" width="4" height="16"/>
+        <rect x="14" y="4" width="4" height="16"/>
+      </IconBase>
+    );
+
+    const Heart = (props) => (
+      <IconBase {...props}>
+        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+      </IconBase>
+    );
+
+    const Info = (props) => (
+      <IconBase {...props}>
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 16v-4"/>
+        <path d="M12 8h.01"/>
+      </IconBase>
+    );
+
+    /**
+     * --- SUDOKU LOGIC ---
+     * シンプルなバックトラッキング法を用いた数独生成ロジック
+     */
+
+    const BLANK = 0;
+
+    // 盤面が有効かチェック
+    const isValid = (board, row, col, num) => {
+      // 行のチェック
+      for (let x = 0; x < 9; x++) {
+        if (board[row][x] === num) return false;
+      }
+      // 列のチェック
+      for (let x = 0; x < 9; x++) {
+        if (board[x][col] === num) return false;
+      }
+      // 3x3ブロックのチェック
+      const startRow = row - (row % 3);
+      const startCol = col - (col % 3);
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+          if (board[i + startRow][j + startCol] === num) return false;
+        }
+      }
+      return true;
+    };
+
+    // 数独を解く（生成用）
+    const solveSudoku = (board) => {
+      for (let row = 0; row < 9; row++) {
+        for (let col = 0; col < 9; col++) {
+          if (board[row][col] === BLANK) {
+            // ランダムな順序で数字を試す（毎回違うパズルにするため）
+            const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
+            for (let num of nums) {
+              if (isValid(board, row, col, num)) {
+                board[row][col] = num;
+                if (solveSudoku(board)) return true;
+                board[row][col] = BLANK;
+              }
+            }
+            return false;
+          }
+        }
+      }
+      return true;
+    };
+
+    // 新しいパズルを生成
+    const generatePuzzle = (difficulty) => {
+      // 空のボードを作成
+      const board = Array.from({ length: 9 }, () => Array(9).fill(BLANK));
+      
+      // 完全な盤面を作成
+      solveSudoku(board);
+      
+      // 解答を保存（ディープコピー）
+      const solution = board.map(row => [...row]);
+      
+      // 難易度に応じて数字を消す
+      // Easy: 30, Medium: 45, Hard: 55
+      let attempts = difficulty === 'easy' ? 30 : difficulty === 'medium' ? 45 : 55;
+      
+      while (attempts > 0) {
+        let row = Math.floor(Math.random() * 9);
+        let col = Math.floor(Math.random() * 9);
+        while (board[row][col] === 0) {
+          row = Math.floor(Math.random() * 9);
+          col = Math.floor(Math.random() * 9);
+        }
+        board[row][col] = BLANK;
+        attempts--;
+      }
+      
+      return { initial: board, solution };
+    };
+
+    /**
+     * --- COMPONENTS ---
+     */
+
+    // スタート画面コンポーネント
+    const StartScreen = ({ onStart }) => {
+      return (
+        <div className="flex flex-col items-center justify-center h-full p-8 text-center animate-fade-in">
+          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-pink-500 tracking-tight mb-6">
+            POP SUDOKU
+          </h1>
+          
+          <div className="bg-white/70 backdrop-blur-sm p-6 rounded-2xl shadow-lg mb-8 w-full max-w-sm border border-indigo-50">
+            <h2 className="text-xl font-bold text-slate-700 mb-4 flex items-center justify-center gap-2">
+              <Info size={24} className="text-indigo-500" /> ルール説明
+            </h2>
+            <ul className="text-slate-600 text-left text-sm space-y-2 list-disc list-inside">
+              <li>9x9のマス目に1から9の数字を入れます。</li>
+              <li>縦、横、3x3のブロック内で数字が重複してはいけません。</li>
+              <li><span className="font-bold text-rose-500">3回ミス</span>するとゲームオーバーです。</li>
+              <li>すべての数字が正しく埋まればクリア！</li>
+            </ul>
+          </div>
+
+          <h3 className="text-lg font-bold text-slate-700 mb-4">難易度を選んでスタート！</h3>
+          <div className="flex flex-col gap-3 w-full max-w-xs">
+            <button onClick={() => onStart('easy')} className="bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg transition-all hover:scale-105 active:scale-95">
+              やさしい
+            </button>
+            <button onClick={() => onStart('medium')} className="bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-xl font-bold shadow-lg transition-all hover:scale-105 active:scale-95">
+              ふつう
+            </button>
+            <button onClick={() => onStart('hard')} className="bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-bold shadow-lg transition-all hover:scale-105 active:scale-95">
+              むずかしい
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+
+    const App = () => {
+      const [isGameStarted, setIsGameStarted] = useState(false);
+      const [gameData, setGameData] = useState({ initial: [], solution: [] });
+      const [board, setBoard] = useState([]);
+      const [selected, setSelected] = useState(null); // {r, c}
+      const [difficulty, setDifficulty] = useState('easy');
+      const [mistakes, setMistakes] = useState(0);
+      const [isWon, setIsWon] = useState(false);
+      const [timer, setTimer] = useState(0);
+      const [isPaused, setIsPaused] = useState(false);
+      
+      // アニメーション用ステート
+      const [shakeCell, setShakeCell] = useState(null);
+      const [popCell, setPopCell] = useState(null);
+
+      // ゲーム開始
+      const startGame = (diff) => {
+        startNewGame(diff);
+        setIsGameStarted(true);
+      };
+
+      // 初期化
+      const startNewGame = useCallback((diff = difficulty) => {
+        const { initial, solution } = generatePuzzle(diff);
+        // プレイ用ボード（初期値をコピー）
+        const playBoard = initial.map(row => [...row]);
+        
+        setGameData({ initial, solution });
+        setBoard(playBoard);
+        setMistakes(0);
+        setIsWon(false);
+        setTimer(0);
+        setIsPaused(false);
+        setSelected(null);
+        setDifficulty(diff);
+      }, [difficulty]);
+
+      // タイマー
+      useEffect(() => {
+        let interval;
+        if (isGameStarted && !isWon && !isPaused) {
+          interval = setInterval(() => {
+            setTimer(prev => prev + 1);
+          }, 1000);
+        }
+        return () => clearInterval(interval);
+      }, [isGameStarted, isWon, isPaused]);
+
+      // フォーマット時間 MM:SS
+      const formatTime = (seconds) => {
+        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+        const s = (seconds % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+      };
+
+      // 数字入力処理
+      const handleNumberInput = (num) => {
+        if (!selected || isWon || isPaused || mistakes >= 3) return;
+        const { r, c } = selected;
+
+        // 初期配置のセルは変更不可
+        if (gameData.initial[r][c] !== BLANK) return;
+
+        // 消しゴム機能
+        if (num === 0) {
+          const newBoard = [...board];
+          newBoard[r] = [...newBoard[r]];
+          newBoard[r][c] = 0;
+          setBoard(newBoard);
+          return;
+        }
+
+        // 正誤判定
+        if (gameData.solution[r][c] === num) {
+          // 正解
+          const newBoard = [...board];
+          newBoard[r] = [...newBoard[r]];
+          newBoard[r][c] = num;
+          setBoard(newBoard);
+          
+          // ポップアニメーション
+          setPopCell(`${r}-${c}`);
+          setTimeout(() => setPopCell(null), 300);
+
+          // 勝利判定
+          checkWin(newBoard);
+        } else {
+          // 間違い
+          setMistakes(prev => prev + 1);
+          // シェイクアニメーション
+          setShakeCell(`${r}-${c}`);
+          setTimeout(() => setShakeCell(null), 400);
+        }
+      };
+
+      const checkWin = (currentBoard) => {
+        for (let i = 0; i < 9; i++) {
+          for (let j = 0; j < 9; j++) {
+            if (currentBoard[i][j] !== gameData.solution[i][j]) return;
+          }
+        }
+        setIsWon(true);
+      };
+
+      // キーボード対応
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (!isGameStarted || isWon || isPaused || mistakes >= 3) return;
+          
+          if (e.key >= '1' && e.key <= '9') {
+            handleNumberInput(parseInt(e.key));
+          } else if (e.key === 'Backspace' || e.key === 'Delete') {
+            handleNumberInput(0);
+          } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+            if (!selected) {
+              setSelected({ r: 0, c: 0 });
+              return;
+            }
+            let { r, c } = selected;
+            if (e.key === 'ArrowUp') r = Math.max(0, r - 1);
+            if (e.key === 'ArrowDown') r = Math.min(8, r + 1);
+            if (e.key === 'ArrowLeft') c = Math.max(0, c - 1);
+            if (e.key === 'ArrowRight') c = Math.min(8, c + 1);
+            setSelected({ r, c });
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [isGameStarted, selected, isWon, isPaused, board, gameData, mistakes]);
+
+      // 数字が完了したかチェック
+      const isNumberComplete = (num) => {
+        let count = 0;
+        for (let r = 0; r < 9; r++) {
+          for (let c = 0; c < 9; c++) {
+            // 現在のボードの数字がnumで、かつ正解と同じであればカウント
+            if (board[r][c] === num && gameData.solution[r][c] === num) {
+              count++;
+            }
+          }
+        }
+        return count === 9;
+      };
+
+
+      // ---- Render Helpers ----
+
+      // セルの背景色などを決定
+      const getCellClass = (r, c, val) => {
+        const isSelected = selected?.r === r && selected?.c === c;
+        const isInitial = gameData.initial[r] && gameData.initial[r][c] !== BLANK;
+        const isSameNumber = selected && val !== 0 && board[selected.r][selected.c] === val;
+        const isRelated = selected && (selected.r === r || selected.c === c || 
+          (Math.floor(selected.r/3) === Math.floor(r/3) && Math.floor(selected.c/3) === Math.floor(c/3)));
+        
+        let base = "w-full h-full flex items-center justify-center text-xl sm:text-2xl font-bold cursor-pointer transition-all duration-200 select-none relative ";
+        
+        // ボーダー（3x3ブロック区切り）
+        let border = "border border-slate-200 ";
+        if (c % 3 === 2 && c !== 8) border += "border-r-2 border-r-indigo-300 ";
+        if (r % 3 === 2 && r !== 8) border += "border-b-2 border-b-indigo-300 ";
+        
+        // 背景と文字色
+        let color = "bg-white text-slate-700 ";
+        
+        if (isInitial) {
+          color = "bg-slate-50 text-slate-900 ";
+        } else {
+          color = "text-indigo-600 ";
+        }
+
+        if (isRelated && !isSelected) {
+          color = "bg-indigo-50 text-slate-800 ";
+        }
+        
+        if (isSameNumber && !isSelected) {
+          color = "bg-indigo-200 text-indigo-900 ";
+        }
+
+        if (isSelected) {
+          color = "bg-pink-400 text-white shadow-lg scale-105 z-10 rounded-md ";
+          // Initial cell selected logic
+          if (isInitial) color = "bg-indigo-400 text-white shadow-lg scale-105 z-10 rounded-md ";
+        }
+
+        // アニメーションクラス
+        if (shakeCell === `${r}-${c}`) base += "animate-shake bg-red-100 ";
+        if (popCell === `${r}-${c}`) base += "animate-pop ";
+
+        return base + border + color;
+      };
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 flex items-center justify-center p-4 font-sans text-slate-800 overflow-hidden">
+          
+          {/* メインコンテナ */}
+          <div className="w-full max-w-md bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/50 flex flex-col relative h-[600px] sm:h-[650px]">
+            
+            {!isGameStarted ? (
+              <StartScreen onStart={startGame} />
+            ) : (
+              <>
+                {/* ヘッダー */}
+                <div className="p-4 sm:p-6 bg-white/50 border-b border-indigo-100 flex justify-between items-center">
+                  <div>
+                    <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-pink-500 tracking-tight">
+                      POP SUDOKU
+                    </h1>
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mt-1">
+                      <span className={`px-2 py-0.5 rounded-full ${difficulty === 'easy' ? 'bg-green-100 text-green-600' : difficulty === 'medium' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'}`}>
+                        {difficulty === 'easy' ? 'やさしい' : difficulty === 'medium' ? 'ふつう' : 'むずかしい'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col items-end">
+                    <div className="flex items-center gap-2 text-indigo-900 font-mono text-lg font-bold">
+                      {isPaused ? <Pause size={16}/> : <Settings className="animate-spin-slow" size={16}/>}
+                      {formatTime(timer)}
+                    </div>
+                    {/* ライフ（ハート）表示 */}
+                    <div className="flex items-center gap-1 mt-1">
+                      {[...Array(3)].map((_, i) => (
+                        <Heart key={i} size={20} className={i < 3 - mistakes ? "text-rose-500 fill-rose-500 transition-all" : "text-slate-300 fill-slate-300 transition-all"} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ゲームボード */}
+                <div className="p-4 sm:p-6 flex-grow flex items-center justify-center bg-white/40">
+                  <div className="w-full aspect-square max-w-[360px] bg-white rounded-lg shadow-xl overflow-hidden border-2 border-indigo-200 grid grid-rows-9">
+                    {board.map((row, r) => (
+                      <div key={r} className="grid grid-cols-9 h-full">
+                        {row.map((val, c) => (
+                          <div 
+                            key={`${r}-${c}`} 
+                            className={getCellClass(r, c, val)}
+                            onClick={() => setSelected({ r, c })}
+                          >
+                            {val !== 0 ? val : ''}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 操作パネル */}
+                <div className="p-4 bg-white border-t border-slate-100">
+                  {/* ナンバーパッド */}
+                  <div className="grid grid-cols-5 gap-2 sm:gap-3 mb-4 max-w-[360px] mx-auto">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => {
+                      const completed = isNumberComplete(num);
+                      if (completed) return <div key={num} className="aspect-square"></div>; // 完了した数字はプレースホルダー
+
+                      return (
+                        <button
+                          key={num}
+                          onClick={() => handleNumberInput(num)}
+                          className="aspect-square bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 text-indigo-600 font-bold text-xl rounded-xl transition-colors shadow-sm border border-indigo-100 flex items-center justify-center"
+                        >
+                          {num}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() => handleNumberInput(0)}
+                      className="aspect-square bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold rounded-xl transition-colors flex items-center justify-center"
+                    >
+                      <Eraser size={20} />
+                    </button>
+                  </div>
+
+                  {/* コントロールボタン */}
+                  <div className="flex justify-between items-center max-w-[360px] mx-auto pt-2 border-t border-slate-100">
+                     <button 
+                       onClick={() => setIsGameStarted(false)} // タイトルに戻る
+                       className="text-xs px-3 py-2 rounded-lg font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center gap-1"
+                     >
+                       ← タイトルへ
+                     </button>
+                     
+                     <button 
+                       onClick={() => setIsPaused(!isPaused)}
+                       className="p-3 rounded-full bg-slate-100 text-slate-600 hover:bg-pink-100 hover:text-pink-500 transition-colors"
+                     >
+                       {isPaused ? <Play size={20} /> : <Pause size={20} />}
+                     </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ゲームオーバー/一時停止オーバーレイ */}
+            {isGameStarted && (mistakes >= 3 || isPaused) && !isWon && (
+              <div className="absolute inset-0 z-30 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center animate-fade-in">
+                 {mistakes >= 3 ? (
+                   <>
+                    <div className="text-6xl mb-4">😢</div>
+                    <h2 className="text-3xl font-black text-slate-700 mb-2">Game Over</h2>
+                    <button 
+                      onClick={() => startNewGame(difficulty)}
+                      className="mt-6 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-full font-bold shadow-lg shadow-indigo-200 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                    >
+                      <RefreshCw size={20} /> もう一度
+                    </button>
+                   </>
+                 ) : (
+                   <>
+                    <h2 className="text-3xl font-black text-slate-700 mb-8">PAUSED</h2>
+                    <button 
+                      onClick={() => setIsPaused(false)}
+                      className="bg-pink-500 hover:bg-pink-600 text-white px-10 py-4 rounded-full font-bold shadow-xl shadow-pink-200 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                    >
+                      <Play size={24} /> 再開する
+                    </button>
+                   </>
+                 )}
+              </div>
+            )}
+
+            {/* 勝利オーバーレイ */}
+            {isWon && (
+              <div className="absolute inset-0 z-40 bg-gradient-to-b from-indigo-500/90 to-purple-600/90 backdrop-blur-md flex flex-col items-center justify-center animate-fade-in text-white">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  {[...Array(20)].map((_, i) => (
+                    <div key={i} className="absolute w-3 h-3 bg-yellow-300 rounded-full animate-confetti" 
+                      style={{
+                        left: `${Math.random() * 100}%`,
+                        animationDelay: `${Math.random() * 2}s`,
+                        backgroundColor: ['#fbbf24', '#f472b6', '#34d399', '#60a5fa'][Math.floor(Math.random()*4)]
+                      }}
+                    />
+                  ))}
+                </div>
+                
+                <Trophy size={64} className="text-yellow-300 mb-4 animate-bounce" />
+                <h2 className="text-4xl font-black mb-2 tracking-tighter">CLEAR!</h2>
+                <p className="text-indigo-100 font-bold text-lg mb-8">Time: {formatTime(timer)}</p>
+                
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setIsGameStarted(false)} // タイトルに戻る
+                    className="bg-white text-indigo-600 px-8 py-3 rounded-full font-bold shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                  >
+                    <RefreshCw size={20} /> タイトルへ戻る
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      );
+    };
+
+    // アプリケーションのマウント
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
