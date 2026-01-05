@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pop Sudoku</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ナンプレ</title>
   <!-- React, ReactDOM, and Babel -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -42,7 +42,6 @@
       from { opacity: 0; }
       to { opacity: 1; }
     }
-    /* 追加: アイコン回転アニメーション用 */
     .animate-spin-slow {
       animation: spin 3s linear infinite;
     }
@@ -50,16 +49,20 @@
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
+    /* モバイルでのスクロール防止 */
+    body {
+      overscroll-behavior: none;
+    }
   </style>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-800">
   <div id="root"></div>
 
   <script type="text/babel">
     const { useState, useEffect, useCallback } = React;
 
     /**
-     * --- ICONS (Inline SVG Components to avoid external dependency errors) ---
+     * --- ICONS ---
      */
     const IconBase = ({ size = 24, className = "", children }) => (
       <svg 
@@ -106,10 +109,10 @@
       </IconBase>
     );
 
-    const Settings = (props) => (
+    const Clock = (props) => (
       <IconBase {...props}>
-        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-        <circle cx="12" cy="12" r="3"/>
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
       </IconBase>
     );
 
@@ -140,24 +143,22 @@
       </IconBase>
     );
 
+    const ArrowLeft = (props) => (
+      <IconBase {...props}>
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </IconBase>
+    );
+
     /**
      * --- SUDOKU LOGIC ---
-     * シンプルなバックトラッキング法を用いた数独生成ロジック
      */
 
     const BLANK = 0;
 
-    // 盤面が有効かチェック
     const isValid = (board, row, col, num) => {
-      // 行のチェック
-      for (let x = 0; x < 9; x++) {
-        if (board[row][x] === num) return false;
-      }
-      // 列のチェック
-      for (let x = 0; x < 9; x++) {
-        if (board[x][col] === num) return false;
-      }
-      // 3x3ブロックのチェック
+      for (let x = 0; x < 9; x++) if (board[row][x] === num) return false;
+      for (let x = 0; x < 9; x++) if (board[x][col] === num) return false;
       const startRow = row - (row % 3);
       const startCol = col - (col % 3);
       for (let i = 0; i < 3; i++) {
@@ -168,12 +169,10 @@
       return true;
     };
 
-    // 数独を解く（生成用）
     const solveSudoku = (board) => {
       for (let row = 0; row < 9; row++) {
         for (let col = 0; col < 9; col++) {
           if (board[row][col] === BLANK) {
-            // ランダムな順序で数字を試す（毎回違うパズルにするため）
             const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
             for (let num of nums) {
               if (isValid(board, row, col, num)) {
@@ -189,20 +188,12 @@
       return true;
     };
 
-    // 新しいパズルを生成
     const generatePuzzle = (difficulty) => {
-      // 空のボードを作成
       const board = Array.from({ length: 9 }, () => Array(9).fill(BLANK));
-      
-      // 完全な盤面を作成
       solveSudoku(board);
-      
-      // 解答を保存（ディープコピー）
       const solution = board.map(row => [...row]);
       
-      // 難易度に応じて数字を消す
-      // Easy: 30, Medium: 45, Hard: 55
-      let attempts = difficulty === 'easy' ? 30 : difficulty === 'medium' ? 45 : 55;
+      let attempts = difficulty === 'easy' ? 30 : difficulty === 'medium' ? 45 : 52;
       
       while (attempts > 0) {
         let row = Math.floor(Math.random() * 9);
@@ -214,43 +205,56 @@
         board[row][col] = BLANK;
         attempts--;
       }
-      
       return { initial: board, solution };
+    };
+
+    const formatTime = (seconds) => {
+      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const s = (seconds % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
     };
 
     /**
      * --- COMPONENTS ---
      */
 
-    // スタート画面コンポーネント
-    const StartScreen = ({ onStart }) => {
+    const StartScreen = ({ onStart, bestTimes }) => {
       return (
-        <div className="flex flex-col items-center justify-center h-full p-8 text-center animate-fade-in">
-          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-pink-500 tracking-tight mb-6">
-            POP SUDOKU
+        <div className="flex flex-col items-center justify-center h-full p-6 text-center animate-fade-in w-full max-w-md mx-auto">
+          <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-pink-500 tracking-tighter mb-2">
+            ナンプレ
           </h1>
+          <p className="text-slate-400 font-bold mb-8 tracking-widest text-sm">SUDOKU PUZZLE</p>
           
-          <div className="bg-white/70 backdrop-blur-sm p-6 rounded-2xl shadow-lg mb-8 w-full max-w-sm border border-indigo-50">
-            <h2 className="text-xl font-bold text-slate-700 mb-4 flex items-center justify-center gap-2">
-              <Info size={24} className="text-indigo-500" /> ルール説明
+          <div className="bg-white/60 backdrop-blur-md p-6 rounded-3xl shadow-xl mb-8 w-full border border-white/50">
+            <h2 className="text-lg font-bold text-slate-700 mb-4 flex items-center justify-center gap-2">
+              <Trophy size={20} className="text-yellow-500" /> ベストタイム
             </h2>
-            <ul className="text-slate-600 text-left text-sm space-y-2 list-disc list-inside">
-              <li>9x9のマス目に1から9の数字を入れます。</li>
-              <li>縦、横、3x3のブロック内で数字が重複してはいけません。</li>
-              <li><span className="font-bold text-rose-500">3回ミス</span>するとゲームオーバーです。</li>
-              <li>すべての数字が正しく埋まればクリア！</li>
-            </ul>
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="flex flex-col items-center p-2 bg-green-50 rounded-xl">
+                <span className="text-green-600 font-bold text-xs mb-1">やさしい</span>
+                <span className="font-mono font-bold text-slate-700">{bestTimes.easy ? formatTime(bestTimes.easy) : '--:--'}</span>
+              </div>
+              <div className="flex flex-col items-center p-2 bg-yellow-50 rounded-xl">
+                <span className="text-yellow-600 font-bold text-xs mb-1">ふつう</span>
+                <span className="font-mono font-bold text-slate-700">{bestTimes.medium ? formatTime(bestTimes.medium) : '--:--'}</span>
+              </div>
+              <div className="flex flex-col items-center p-2 bg-red-50 rounded-xl">
+                <span className="text-red-600 font-bold text-xs mb-1">むずかしい</span>
+                <span className="font-mono font-bold text-slate-700">{bestTimes.hard ? formatTime(bestTimes.hard) : '--:--'}</span>
+              </div>
+            </div>
           </div>
 
-          <h3 className="text-lg font-bold text-slate-700 mb-4">難易度を選んでスタート！</h3>
-          <div className="flex flex-col gap-3 w-full max-w-xs">
-            <button onClick={() => onStart('easy')} className="bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg transition-all hover:scale-105 active:scale-95">
+          <h3 className="text-lg font-bold text-slate-700 mb-4">難易度を選んでスタート</h3>
+          <div className="flex flex-col gap-3 w-full">
+            <button onClick={() => onStart('easy')} className="bg-gradient-to-r from-green-400 to-green-500 hover:from-green-500 hover:to-green-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-green-200 transition-all hover:scale-[1.02] active:scale-95 text-lg">
               やさしい
             </button>
-            <button onClick={() => onStart('medium')} className="bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-xl font-bold shadow-lg transition-all hover:scale-105 active:scale-95">
+            <button onClick={() => onStart('medium')} className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-yellow-200 transition-all hover:scale-[1.02] active:scale-95 text-lg">
               ふつう
             </button>
-            <button onClick={() => onStart('hard')} className="bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-bold shadow-lg transition-all hover:scale-105 active:scale-95">
+            <button onClick={() => onStart('hard')} className="bg-gradient-to-r from-rose-400 to-rose-500 hover:from-rose-500 hover:to-rose-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-rose-200 transition-all hover:scale-[1.02] active:scale-95 text-lg">
               むずかしい
             </button>
           </div>
@@ -258,34 +262,48 @@
       );
     };
 
-
     const App = () => {
       const [isGameStarted, setIsGameStarted] = useState(false);
       const [gameData, setGameData] = useState({ initial: [], solution: [] });
       const [board, setBoard] = useState([]);
-      const [selected, setSelected] = useState(null); // {r, c}
+      const [selected, setSelected] = useState(null); 
       const [difficulty, setDifficulty] = useState('easy');
       const [mistakes, setMistakes] = useState(0);
       const [isWon, setIsWon] = useState(false);
       const [timer, setTimer] = useState(0);
       const [isPaused, setIsPaused] = useState(false);
+      const [bestTimes, setBestTimes] = useState({ easy: null, medium: null, hard: null });
       
-      // アニメーション用ステート
       const [shakeCell, setShakeCell] = useState(null);
       const [popCell, setPopCell] = useState(null);
 
-      // ゲーム開始
+      // Load Best Times
+      useEffect(() => {
+        const saved = localStorage.getItem('sudoku_best_times');
+        if (saved) {
+          setBestTimes(JSON.parse(saved));
+        }
+      }, []);
+
+      const saveBestTime = (time, diff) => {
+        const currentBest = bestTimes[diff];
+        if (currentBest === null || time < currentBest) {
+          const newBestTimes = { ...bestTimes, [diff]: time };
+          setBestTimes(newBestTimes);
+          localStorage.setItem('sudoku_best_times', JSON.stringify(newBestTimes));
+          return true; // New record
+        }
+        return false;
+      };
+
       const startGame = (diff) => {
         startNewGame(diff);
         setIsGameStarted(true);
       };
 
-      // 初期化
       const startNewGame = useCallback((diff = difficulty) => {
         const { initial, solution } = generatePuzzle(diff);
-        // プレイ用ボード（初期値をコピー）
         const playBoard = initial.map(row => [...row]);
-        
         setGameData({ initial, solution });
         setBoard(playBoard);
         setMistakes(0);
@@ -296,7 +314,6 @@
         setDifficulty(diff);
       }, [difficulty]);
 
-      // タイマー
       useEffect(() => {
         let interval;
         if (isGameStarted && !isWon && !isPaused) {
@@ -307,22 +324,12 @@
         return () => clearInterval(interval);
       }, [isGameStarted, isWon, isPaused]);
 
-      // フォーマット時間 MM:SS
-      const formatTime = (seconds) => {
-        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-        const s = (seconds % 60).toString().padStart(2, '0');
-        return `${m}:${s}`;
-      };
-
-      // 数字入力処理
       const handleNumberInput = (num) => {
         if (!selected || isWon || isPaused || mistakes >= 3) return;
         const { r, c } = selected;
 
-        // 初期配置のセルは変更不可
         if (gameData.initial[r][c] !== BLANK) return;
 
-        // 消しゴム機能
         if (num === 0) {
           const newBoard = [...board];
           newBoard[r] = [...newBoard[r]];
@@ -331,24 +338,16 @@
           return;
         }
 
-        // 正誤判定
         if (gameData.solution[r][c] === num) {
-          // 正解
           const newBoard = [...board];
           newBoard[r] = [...newBoard[r]];
           newBoard[r][c] = num;
           setBoard(newBoard);
-          
-          // ポップアニメーション
           setPopCell(`${r}-${c}`);
           setTimeout(() => setPopCell(null), 300);
-
-          // 勝利判定
           checkWin(newBoard);
         } else {
-          // 間違い
           setMistakes(prev => prev + 1);
-          // シェイクアニメーション
           setShakeCell(`${r}-${c}`);
           setTimeout(() => setShakeCell(null), 400);
         }
@@ -361,9 +360,9 @@
           }
         }
         setIsWon(true);
+        saveBestTime(timer, difficulty);
       };
 
-      // キーボード対応
       useEffect(() => {
         const handleKeyDown = (e) => {
           if (!isGameStarted || isWon || isPaused || mistakes >= 3) return;
@@ -389,12 +388,10 @@
         return () => window.removeEventListener('keydown', handleKeyDown);
       }, [isGameStarted, selected, isWon, isPaused, board, gameData, mistakes]);
 
-      // 数字が完了したかチェック
       const isNumberComplete = (num) => {
         let count = 0;
         for (let r = 0; r < 9; r++) {
           for (let c = 0; c < 9; c++) {
-            // 現在のボードの数字がnumで、かつ正解と同じであればカウント
             if (board[r][c] === num && gameData.solution[r][c] === num) {
               count++;
             }
@@ -403,10 +400,6 @@
         return count === 9;
       };
 
-
-      // ---- Render Helpers ----
-
-      // セルの背景色などを決定
       const getCellClass = (r, c, val) => {
         const isSelected = selected?.r === r && selected?.c === c;
         const isInitial = gameData.initial[r] && gameData.initial[r][c] !== BLANK;
@@ -416,35 +409,25 @@
         
         let base = "w-full h-full flex items-center justify-center text-xl sm:text-2xl font-bold cursor-pointer transition-all duration-200 select-none relative ";
         
-        // ボーダー（3x3ブロック区切り）
-        let border = "border border-slate-200 ";
-        if (c % 3 === 2 && c !== 8) border += "border-r-2 border-r-indigo-300 ";
-        if (r % 3 === 2 && r !== 8) border += "border-b-2 border-b-indigo-300 ";
+        // グリッド線
+        let border = "border border-slate-300 ";
+        // 3x3ブロック境界線 (少し太く濃く)
+        if (c % 3 === 2 && c !== 8) border += "border-r-2 border-r-indigo-400 ";
+        if (r % 3 === 2 && r !== 8) border += "border-b-2 border-b-indigo-400 ";
         
-        // 背景と文字色
         let color = "bg-white text-slate-700 ";
         
-        if (isInitial) {
-          color = "bg-slate-50 text-slate-900 ";
-        } else {
-          color = "text-indigo-600 ";
-        }
+        if (isInitial) color = "bg-slate-100 text-slate-900 ";
+        else color = "text-indigo-600 ";
 
-        if (isRelated && !isSelected) {
-          color = "bg-indigo-50 text-slate-800 ";
-        }
-        
-        if (isSameNumber && !isSelected) {
-          color = "bg-indigo-200 text-indigo-900 ";
-        }
+        if (isRelated && !isSelected) color = "bg-indigo-50 text-slate-800 ";
+        if (isSameNumber && !isSelected) color = "bg-indigo-200 text-indigo-900 ";
 
         if (isSelected) {
-          color = "bg-pink-400 text-white shadow-lg scale-105 z-10 rounded-md ";
-          // Initial cell selected logic
-          if (isInitial) color = "bg-indigo-400 text-white shadow-lg scale-105 z-10 rounded-md ";
+          color = "bg-pink-500 text-white shadow-lg scale-105 z-10 rounded-md ";
+          if (isInitial) color = "bg-indigo-500 text-white shadow-lg scale-105 z-10 rounded-md ";
         }
 
-        // アニメーションクラス
         if (shakeCell === `${r}-${c}`) base += "animate-shake bg-red-100 ";
         if (popCell === `${r}-${c}`) base += "animate-pop ";
 
@@ -452,45 +435,41 @@
       };
 
       return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 flex items-center justify-center p-4 font-sans text-slate-800 overflow-hidden">
+        <div className="fixed inset-0 bg-slate-50 flex items-center justify-center font-sans text-slate-800 overflow-hidden">
           
-          {/* メインコンテナ */}
-          <div className="w-full max-w-md bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/50 flex flex-col relative h-[600px] sm:h-[650px]">
+          <div className="w-full h-full sm:h-auto sm:max-h-[95vh] sm:max-w-lg sm:rounded-3xl sm:shadow-2xl sm:border sm:border-slate-200 bg-white flex flex-col relative overflow-hidden">
             
             {!isGameStarted ? (
-              <StartScreen onStart={startGame} />
+              <StartScreen onStart={startGame} bestTimes={bestTimes} />
             ) : (
               <>
-                {/* ヘッダー */}
-                <div className="p-4 sm:p-6 bg-white/50 border-b border-indigo-100 flex justify-between items-center">
-                  <div>
-                    <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-pink-500 tracking-tight">
-                      POP SUDOKU
+                {/* ヘッダー: コンパクト化して画面領域を確保 */}
+                <div className="px-4 py-2 bg-white flex justify-between items-end border-b border-slate-100 shrink-0">
+                  <div className="flex flex-col">
+                    <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">
+                      ナンプレ
                     </h1>
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mt-1">
-                      <span className={`px-2 py-0.5 rounded-full ${difficulty === 'easy' ? 'bg-green-100 text-green-600' : difficulty === 'medium' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'}`}>
-                        {difficulty === 'easy' ? 'やさしい' : difficulty === 'medium' ? 'ふつう' : 'むずかしい'}
-                      </span>
-                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit ${difficulty === 'easy' ? 'bg-green-100 text-green-600' : difficulty === 'medium' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'}`}>
+                      {difficulty === 'easy' ? 'やさしい' : difficulty === 'medium' ? 'ふつう' : 'むずかしい'}
+                    </span>
                   </div>
                   
                   <div className="flex flex-col items-end">
-                    <div className="flex items-center gap-2 text-indigo-900 font-mono text-lg font-bold">
-                      {isPaused ? <Pause size={16}/> : <Settings className="animate-spin-slow" size={16}/>}
+                    <div className="flex items-center gap-1.5 text-indigo-900 font-mono text-xl font-bold leading-none mb-1">
+                      <Clock size={18} className="text-indigo-400" />
                       {formatTime(timer)}
                     </div>
-                    {/* ライフ（ハート）表示 */}
-                    <div className="flex items-center gap-1 mt-1">
+                    <div className="flex gap-0.5">
                       {[...Array(3)].map((_, i) => (
-                        <Heart key={i} size={20} className={i < 3 - mistakes ? "text-rose-500 fill-rose-500 transition-all" : "text-slate-300 fill-slate-300 transition-all"} />
+                        <Heart key={i} size={16} className={i < 3 - mistakes ? "text-rose-500 fill-rose-500" : "text-slate-200 fill-slate-200"} />
                       ))}
                     </div>
                   </div>
                 </div>
 
-                {/* ゲームボード */}
-                <div className="p-4 sm:p-6 flex-grow flex items-center justify-center bg-white/40">
-                  <div className="w-full aspect-square max-w-[360px] bg-white rounded-lg shadow-xl overflow-hidden border-2 border-indigo-200 grid grid-rows-9">
+                {/* ゲームボード: 可能な限り大きく表示 */}
+                <div className="flex-grow flex flex-col items-center justify-center p-2 bg-slate-50 w-full overflow-hidden">
+                  <div className="w-full max-w-[450px] aspect-square bg-white rounded-lg shadow-md border-2 border-indigo-400 grid grid-rows-9">
                     {board.map((row, r) => (
                       <div key={r} className="grid grid-cols-9 h-full">
                         {row.map((val, c) => (
@@ -507,19 +486,19 @@
                   </div>
                 </div>
 
-                {/* 操作パネル */}
-                <div className="p-4 bg-white border-t border-slate-100">
+                {/* 操作パネル: 押しやすさ重視 */}
+                <div className="p-3 bg-white border-t border-slate-100 shrink-0 pb-safe">
                   {/* ナンバーパッド */}
-                  <div className="grid grid-cols-5 gap-2 sm:gap-3 mb-4 max-w-[360px] mx-auto">
+                  <div className="grid grid-cols-5 gap-2 mb-3 max-w-[450px] mx-auto">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => {
                       const completed = isNumberComplete(num);
-                      if (completed) return <div key={num} className="aspect-square"></div>; // 完了した数字はプレースホルダー
+                      if (completed) return <div key={num} className="aspect-[4/3] sm:aspect-square flex items-center justify-center text-slate-200 font-bold text-lg select-none">✓</div>;
 
                       return (
                         <button
                           key={num}
                           onClick={() => handleNumberInput(num)}
-                          className="aspect-square bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 text-indigo-600 font-bold text-xl rounded-xl transition-colors shadow-sm border border-indigo-100 flex items-center justify-center"
+                          className="aspect-[4/3] sm:aspect-square bg-white border-b-4 border-indigo-100 active:border-b-0 active:translate-y-[4px] hover:bg-indigo-50 text-indigo-600 font-bold text-2xl rounded-xl transition-all shadow-sm border border-indigo-200 flex items-center justify-center"
                         >
                           {num}
                         </button>
@@ -527,52 +506,59 @@
                     })}
                     <button
                       onClick={() => handleNumberInput(0)}
-                      className="aspect-square bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold rounded-xl transition-colors flex items-center justify-center"
+                      className="aspect-[4/3] sm:aspect-square bg-slate-100 border-b-4 border-slate-200 active:border-b-0 active:translate-y-[4px] hover:bg-slate-200 text-slate-500 font-bold rounded-xl transition-all flex items-center justify-center"
                     >
-                      <Eraser size={20} />
+                      <Eraser size={24} />
                     </button>
                   </div>
 
                   {/* コントロールボタン */}
-                  <div className="flex justify-between items-center max-w-[360px] mx-auto pt-2 border-t border-slate-100">
+                  <div className="flex justify-between items-center max-w-[450px] mx-auto pt-1">
                      <button 
-                       onClick={() => setIsGameStarted(false)} // タイトルに戻る
-                       className="text-xs px-3 py-2 rounded-lg font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center gap-1"
+                       onClick={() => setIsGameStarted(false)}
+                       className="text-xs px-4 py-3 rounded-full font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center gap-2"
                      >
-                       ← タイトルへ
+                       <ArrowLeft size={16} /> タイトルへ
                      </button>
                      
                      <button 
                        onClick={() => setIsPaused(!isPaused)}
                        className="p-3 rounded-full bg-slate-100 text-slate-600 hover:bg-pink-100 hover:text-pink-500 transition-colors"
                      >
-                       {isPaused ? <Play size={20} /> : <Pause size={20} />}
+                       {isPaused ? <Play size={24} /> : <Pause size={24} />}
                      </button>
                   </div>
                 </div>
               </>
             )}
 
-            {/* ゲームオーバー/一時停止オーバーレイ */}
+            {/* ポーズ/ゲームオーバーオーバーレイ */}
             {isGameStarted && (mistakes >= 3 || isPaused) && !isWon && (
-              <div className="absolute inset-0 z-30 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center animate-fade-in">
+              <div className="absolute inset-0 z-30 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center animate-fade-in p-6 text-center">
                  {mistakes >= 3 ? (
                    <>
-                    <div className="text-6xl mb-4">😢</div>
-                    <h2 className="text-3xl font-black text-slate-700 mb-2">Game Over</h2>
+                    <div className="text-6xl mb-4 animate-bounce">😢</div>
+                    <h2 className="text-3xl font-black text-slate-800 mb-2">Game Over</h2>
+                    <p className="text-slate-500 mb-8">また挑戦しよう！</p>
                     <button 
                       onClick={() => startNewGame(difficulty)}
-                      className="mt-6 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-full font-bold shadow-lg shadow-indigo-200 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                      className="w-full max-w-xs bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-bold shadow-xl shadow-indigo-200 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
                     >
-                      <RefreshCw size={20} /> もう一度
+                      <RefreshCw size={20} /> もう一度プレイ
+                    </button>
+                    <button 
+                      onClick={() => setIsGameStarted(false)}
+                      className="mt-4 text-slate-400 font-bold text-sm hover:text-slate-600"
+                    >
+                      タイトルに戻る
                     </button>
                    </>
                  ) : (
                    <>
-                    <h2 className="text-3xl font-black text-slate-700 mb-8">PAUSED</h2>
+                    <h2 className="text-4xl font-black text-slate-800 mb-8 tracking-tight">PAUSED</h2>
                     <button 
                       onClick={() => setIsPaused(false)}
-                      className="bg-pink-500 hover:bg-pink-600 text-white px-10 py-4 rounded-full font-bold shadow-xl shadow-pink-200 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                      className="w-full max-w-xs bg-pink-500 hover:bg-pink-600 text-white py-4 rounded-2xl font-bold shadow-xl shadow-pink-200 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
                     >
                       <Play size={24} /> 再開する
                     </button>
@@ -581,11 +567,11 @@
               </div>
             )}
 
-            {/* 勝利オーバーレイ */}
+            {/* 勝利画面 */}
             {isWon && (
-              <div className="absolute inset-0 z-40 bg-gradient-to-b from-indigo-500/90 to-purple-600/90 backdrop-blur-md flex flex-col items-center justify-center animate-fade-in text-white">
+              <div className="absolute inset-0 z-40 bg-gradient-to-b from-indigo-600/95 to-purple-700/95 backdrop-blur-md flex flex-col items-center justify-center animate-fade-in text-white p-6 text-center">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  {[...Array(20)].map((_, i) => (
+                  {[...Array(30)].map((_, i) => (
                     <div key={i} className="absolute w-3 h-3 bg-yellow-300 rounded-full animate-confetti" 
                       style={{
                         left: `${Math.random() * 100}%`,
@@ -596,16 +582,32 @@
                   ))}
                 </div>
                 
-                <Trophy size={64} className="text-yellow-300 mb-4 animate-bounce" />
-                <h2 className="text-4xl font-black mb-2 tracking-tighter">CLEAR!</h2>
-                <p className="text-indigo-100 font-bold text-lg mb-8">Time: {formatTime(timer)}</p>
+                <Trophy size={80} className="text-yellow-300 mb-6 animate-bounce drop-shadow-lg" />
+                <h2 className="text-5xl font-black mb-2 tracking-tighter">CLEAR!</h2>
                 
-                <div className="flex gap-4">
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-8 w-full max-w-xs border border-white/20">
+                  <p className="text-indigo-200 font-bold text-sm mb-1">TIME</p>
+                  <p className="text-4xl font-mono font-bold mb-4">{formatTime(timer)}</p>
+                  
+                  {bestTimes[difficulty] === timer && (
+                    <div className="inline-block bg-yellow-400 text-yellow-900 text-xs font-black px-3 py-1 rounded-full animate-pulse">
+                      NEW RECORD!
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex flex-col gap-3 w-full max-w-xs">
                   <button 
-                    onClick={() => setIsGameStarted(false)} // タイトルに戻る
-                    className="bg-white text-indigo-600 px-8 py-3 rounded-full font-bold shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                    onClick={() => startNewGame()}
+                    className="bg-white text-indigo-600 py-4 rounded-2xl font-bold shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
                   >
-                    <RefreshCw size={20} /> タイトルへ戻る
+                    <RefreshCw size={20} /> 同じ難易度で遊ぶ
+                  </button>
+                  <button 
+                    onClick={() => setIsGameStarted(false)}
+                    className="bg-indigo-800/50 text-indigo-100 py-4 rounded-2xl font-bold hover:bg-indigo-800/70 transition-all"
+                  >
+                    タイトルへ戻る
                   </button>
                 </div>
               </div>
@@ -616,7 +618,6 @@
       );
     };
 
-    // アプリケーションのマウント
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
