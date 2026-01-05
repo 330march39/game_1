@@ -115,33 +115,31 @@
       justify-content: center;
       align-items: center;
       overflow: hidden;
-      padding: 1rem;
+      padding: 4px;
     }
     .sudoku-board-wrapper {
       /* コンテナ内で可能な限り大きく、かつ正方形を維持 */
       width: 100%;
       height: 100%;
-      max-width: 100%;
-      max-height: 100%;
       display: flex;
       justify-content: center;
       align-items: center;
     }
     .sudoku-board {
-      /* 正方形を強制 */
+      /* 正方形を強制し、親コンテナに収まる最大サイズにする */
       aspect-ratio: 1 / 1;
-      /* 親要素（wrapper）の短辺に合わせてリサイズ */
+      width: auto;
+      height: auto;
       max-width: 100%;
       max-height: 100%;
-      /* 一部ブラウザのバグ回避のためのheight指定 */
-      height: auto; 
-      width: auto;
+      margin: auto; /* 中央配置を補強 */
       
-      /* フォールバック: 正方形にならない場合の保険としてobject-fit的な挙動をflexで模倣 */
+      /* Landscape時の高さ基準 */
       @media (orientation: landscape) {
         height: 100%;
         width: auto;
       }
+      /* Portrait時の幅基準 */
       @media (orientation: portrait) {
         width: 100%;
         height: auto;
@@ -352,67 +350,62 @@
           <div className="absolute top-[-10%] right-[-5%] w-[40vw] h-[40vw] bg-indigo-100 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
           <div className="absolute bottom-[-10%] left-[-5%] w-[40vw] h-[40vw] bg-purple-100 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
 
-          <div className="w-full h-full flex flex-col md:flex-row items-center justify-center p-6 md:p-12 gap-8 md:gap-16 relative z-10 overflow-y-auto">
+          <div className="w-full h-full flex flex-col md:flex-row items-center justify-center p-6 md:p-12 gap-6 md:gap-16 relative z-10 overflow-y-auto">
             
-            {/* 左側（モバイルでは上部）：タイトルエリア */}
-            <div className="flex flex-col items-center md:items-end md:text-right flex-shrink-0">
-              <div className="relative mb-4">
-                <div className="absolute -top-6 -right-6 animate-bounce-slow text-yellow-400">
-                  <IconBase size={48} className="fill-yellow-400"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></IconBase>
-                </div>
+            {/* 左側（モバイルでは上部）：タイトル＆ベストタイムエリア */}
+            <div className="flex flex-col items-center md:items-end md:text-right w-full max-w-md shrink-0">
+              <div className="mb-2 text-center md:text-right">
                 <h1 className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 tracking-tighter drop-shadow-sm select-none">
                   ナンプレ
                 </h1>
+                <p className="text-slate-400 font-bold tracking-[0.3em] text-sm md:text-lg select-none">NUMBER PUZZLE</p>
               </div>
-              <p className="text-slate-400 font-bold tracking-[0.3em] text-sm md:text-lg mb-6 select-none">SUDOKU PUZZLE</p>
+
+              {/* ベストタイム表示（横並びレイアウト） */}
+              <div className="w-full mt-4 md:mt-8">
+                <div className="bg-white/80 backdrop-blur-md p-3 md:p-4 rounded-2xl shadow-lg border border-white/60">
+                  <h2 className="text-xs font-bold text-slate-500 mb-2 flex items-center justify-center md:justify-end gap-2 uppercase tracking-wider">
+                    <Trophy size={14} className="text-yellow-500" /> Best Times
+                  </h2>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-col items-center justify-center p-2 bg-green-50/50 rounded-xl border border-green-100">
+                      <span className="text-green-700 font-bold text-xs mb-1">やさしい</span>
+                      <span className="font-mono font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.easy ? formatTime(bestTimes.easy) : '--:--'}</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-2 bg-yellow-50/50 rounded-xl border border-yellow-100">
+                      <span className="text-yellow-700 font-bold text-xs mb-1">ふつう</span>
+                      <span className="font-mono font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.medium ? formatTime(bestTimes.medium) : '--:--'}</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-2 bg-red-50/50 rounded-xl border border-red-100">
+                      <span className="text-red-700 font-bold text-xs mb-1">むずかしい</span>
+                      <span className="font-mono font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.hard ? formatTime(bestTimes.hard) : '--:--'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
               
               <button 
                 onClick={() => setShowRules(true)}
-                className="flex items-center gap-2 text-indigo-500 hover:text-indigo-700 font-bold bg-white px-4 py-2 rounded-full shadow-sm hover:shadow-md transition-all text-sm md:text-base"
+                className="mt-6 flex items-center gap-2 text-indigo-500 hover:text-indigo-700 font-bold bg-white px-4 py-2 rounded-full shadow-sm hover:shadow-md transition-all text-sm md:text-base"
               >
                 <HelpCircle size={20} /> ルールを見る
               </button>
             </div>
 
             {/* 右側（モバイルでは下部）：アクションエリア */}
-            <div className="w-full max-w-sm flex flex-col gap-6">
-              
-              {/* スコアボード */}
-              <div className="bg-white/80 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/60">
-                <h2 className="text-sm font-bold text-slate-500 mb-3 flex items-center gap-2 uppercase tracking-wider">
-                  <Trophy size={16} className="text-yellow-500" /> Best Times
-                </h2>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-green-50/50 rounded-xl border border-green-100">
-                    <span className="text-green-700 font-bold text-sm">やさしい</span>
-                    <span className="font-mono font-bold text-slate-700 text-lg">{bestTimes.easy ? formatTime(bestTimes.easy) : '--:--'}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-yellow-50/50 rounded-xl border border-yellow-100">
-                    <span className="text-yellow-700 font-bold text-sm">ふつう</span>
-                    <span className="font-mono font-bold text-slate-700 text-lg">{bestTimes.medium ? formatTime(bestTimes.medium) : '--:--'}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-red-50/50 rounded-xl border border-red-100">
-                    <span className="text-red-700 font-bold text-sm">むずかしい</span>
-                    <span className="font-mono font-bold text-slate-700 text-lg">{bestTimes.hard ? formatTime(bestTimes.hard) : '--:--'}</span>
-                  </div>
-                </div>
-              </div>
-
+            <div className="w-full max-w-sm flex flex-col gap-6 shrink-0">
               {/* スタートボタン */}
               <div className="grid grid-cols-1 gap-3">
-                <button onClick={() => onStart('easy')} className="group relative overflow-hidden bg-gradient-to-r from-emerald-400 to-emerald-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-emerald-200 transition-all hover:scale-[1.02] active:scale-95 text-lg flex items-center justify-center gap-3">
+                <button onClick={() => onStart('easy')} className="group relative overflow-hidden bg-gradient-to-r from-emerald-400 to-emerald-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-emerald-200 transition-all hover:scale-[1.02] active:scale-95 text-lg flex items-center justify-center">
                   <span className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500"></span>
-                  <span className="w-2 h-2 rounded-full bg-white"></span>
                   やさしい
                 </button>
-                <button onClick={() => onStart('medium')} className="group relative overflow-hidden bg-gradient-to-r from-amber-400 to-amber-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-amber-200 transition-all hover:scale-[1.02] active:scale-95 text-lg flex items-center justify-center gap-3">
+                <button onClick={() => onStart('medium')} className="group relative overflow-hidden bg-gradient-to-r from-amber-400 to-amber-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-amber-200 transition-all hover:scale-[1.02] active:scale-95 text-lg flex items-center justify-center">
                   <span className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500"></span>
-                  <span className="flex gap-1"><span className="w-2 h-2 rounded-full bg-white"></span><span className="w-2 h-2 rounded-full bg-white"></span></span>
                   ふつう
                 </button>
-                <button onClick={() => onStart('hard')} className="group relative overflow-hidden bg-gradient-to-r from-rose-400 to-rose-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-rose-200 transition-all hover:scale-[1.02] active:scale-95 text-lg flex items-center justify-center gap-3">
+                <button onClick={() => onStart('hard')} className="group relative overflow-hidden bg-gradient-to-r from-rose-400 to-rose-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-rose-200 transition-all hover:scale-[1.02] active:scale-95 text-lg flex items-center justify-center">
                   <span className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500"></span>
-                  <span className="flex gap-1"><span className="w-2 h-2 rounded-full bg-white"></span><span className="w-2 h-2 rounded-full bg-white"></span><span className="w-2 h-2 rounded-full bg-white"></span></span>
                   むずかしい
                 </button>
               </div>
@@ -706,7 +699,7 @@
           </div>
           <div className="flex flex-col items-center mt-4 opacity-50">
              <Grid size={24} className="text-slate-300 mb-1" />
-             <div className="text-[10px] text-slate-300 font-bold tracking-widest">SUDOKU</div>
+             <div className="text-[10px] text-slate-300 font-bold tracking-widest">NANPRE</div>
           </div>
         </div>
       );
