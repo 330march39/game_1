@@ -126,20 +126,22 @@
       align-items: center;
     }
     .sudoku-board {
-      /* 正方形を強制し、親コンテナに収まる最大サイズにする */
+      /* 正方形を強制 */
       aspect-ratio: 1 / 1;
-      width: auto;
-      height: auto;
+      
+      /* 親要素からはみ出さないように制限 */
       max-width: 100%;
       max-height: 100%;
-      margin: auto; /* 中央配置を補強 */
       
-      /* Landscape時の高さ基準 */
+      margin: auto; /* 中央配置 */
+
+      /* 画面向きに応じたサイズ基準の切り替え */
+      /* Landscape: 高さを基準に、幅は自動（ただしmax-widthで制限） */
       @media (orientation: landscape) {
         height: 100%;
         width: auto;
       }
-      /* Portrait時の幅基準 */
+      /* Portrait: 幅を基準に、高さは自動（ただしmax-heightで制限） */
       @media (orientation: portrait) {
         width: 100%;
         height: auto;
@@ -361,23 +363,23 @@
                 <p className="text-slate-400 font-bold tracking-[0.3em] text-sm md:text-lg select-none">NUMBER PUZZLE</p>
               </div>
 
-              {/* ベストタイム表示（横並びレイアウト） */}
+              {/* ベストタイム表示（レスポンシブ：横画面では縦並び、縦画面では横並び） */}
               <div className="w-full mt-4 md:mt-8">
                 <div className="bg-white/80 backdrop-blur-md p-3 md:p-4 rounded-2xl shadow-lg border border-white/60">
-                  <h2 className="text-xs font-bold text-slate-500 mb-2 flex items-center justify-center md:justify-end gap-2 uppercase tracking-wider">
+                  <h2 className="text-xs font-bold text-slate-500 mb-2 flex items-center justify-center md:justify-start gap-2 uppercase tracking-wider">
                     <Trophy size={14} className="text-yellow-500" /> Best Times
                   </h2>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="flex flex-col items-center justify-center p-2 bg-green-50/50 rounded-xl border border-green-100">
-                      <span className="text-green-700 font-bold text-xs mb-1">やさしい</span>
+                  <div className="grid grid-cols-3 md:grid-cols-1 gap-2">
+                    <div className="flex flex-col md:flex-row items-center justify-center md:justify-between p-2 md:px-3 md:py-2 bg-green-50/50 rounded-xl border border-green-100">
+                      <span className="text-green-700 font-bold text-xs mb-1 md:mb-0">やさしい</span>
                       <span className="font-mono font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.easy ? formatTime(bestTimes.easy) : '--:--'}</span>
                     </div>
-                    <div className="flex flex-col items-center justify-center p-2 bg-yellow-50/50 rounded-xl border border-yellow-100">
-                      <span className="text-yellow-700 font-bold text-xs mb-1">ふつう</span>
+                    <div className="flex flex-col md:flex-row items-center justify-center md:justify-between p-2 md:px-3 md:py-2 bg-yellow-50/50 rounded-xl border border-yellow-100">
+                      <span className="text-yellow-700 font-bold text-xs mb-1 md:mb-0">ふつう</span>
                       <span className="font-mono font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.medium ? formatTime(bestTimes.medium) : '--:--'}</span>
                     </div>
-                    <div className="flex flex-col items-center justify-center p-2 bg-red-50/50 rounded-xl border border-red-100">
-                      <span className="text-red-700 font-bold text-xs mb-1">むずかしい</span>
+                    <div className="flex flex-col md:flex-row items-center justify-center md:justify-between p-2 md:px-3 md:py-2 bg-red-50/50 rounded-xl border border-red-100">
+                      <span className="text-red-700 font-bold text-xs mb-1 md:mb-0">むずかしい</span>
                       <span className="font-mono font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.hard ? formatTime(bestTimes.hard) : '--:--'}</span>
                     </div>
                   </div>
