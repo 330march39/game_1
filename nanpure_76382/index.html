@@ -782,7 +782,7 @@
                 <div className="flex-grow bg-slate-50/50 relative board-container">
                   {/* wrapperを追加して正方形の中心配置を確実に */}
                   <div className="sudoku-board-wrapper">
-                    <div className="sudoku-board shadow-xl rounded-lg overflow-hidden border-2 border-indigo-500 bg-white grid grid-rows-9">
+                    <div className="sudoku-board shadow-xl rounded-lg overflow-hidden border-2 border-indigo-500 bg-white grid grid-rows-9 aspect-square max-w-full max-h-full ">
                       {board.map((row, r) => (
                         <div key={r} className="grid grid-cols-9 h-full">
                           {row.map((val, c) => {
