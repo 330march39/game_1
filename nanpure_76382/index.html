@@ -126,27 +126,28 @@
       align-items: center;
     }
     .sudoku-board {
-      /* 正方形を強制 */
       aspect-ratio: 1 / 1;
-      
-      /* 親要素からはみ出さないように制限 */
       max-width: 100%;
       max-height: 100%;
-      
-      margin: auto; /* 中央配置 */
-
-      /* 画面向きに応じたサイズ基準の切り替え */
-      /* Landscape: 高さを基準に、幅は自動（ただしmax-widthで制限） */
-      @media (orientation: landscape) {
+      margin: auto;
+    }
+    
+    /* Landscape: 高さ基準で正方形にする */
+    @media (orientation: landscape) {
+      .sudoku-board {
         height: 100%;
         width: auto;
       }
-      /* Portrait: 幅を基準に、高さは自動（ただしmax-heightで制限） */
-      @media (orientation: portrait) {
+    }
+    
+    /* Portrait: 幅基準で正方形にする */
+    @media (orientation: portrait) {
+      .sudoku-board {
         width: 100%;
         height: auto;
       }
     }
+
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
