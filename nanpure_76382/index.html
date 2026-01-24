@@ -620,9 +620,11 @@
           setTimeout(() => setPopCell(null), 300);
           checkAndAnimateLines(newBoard, r, c, num);
           if (checkIsComplete(newBoard)) {
-            // ウェーブ演出が見えるように1500ミリ秒(1.5秒)待ってから勝利画面へ
+            // ここで timer を止めるなどの処理は useEffect 側で isWon を検知して止まるのでOK
+            // 1.5秒後に確実に isWon を true にする
             setTimeout(() => {
-              handleWin();
+              setIsWon(true);
+              saveBestTime(timer, difficulty);
             }, 1500);
           }
         } else {
@@ -729,7 +731,7 @@
         if (isRelated && !isSelected) color = "bg-yellow-50 text-slate-800 ";
         
         // 同じ数字のハイライト：少し濃い黄色 (bg-yellow-100)
-        if (isSameNumber && !isSelected) color = "bg-yellow-100 text-indigo-900 ";
+        if (isSameNumber && !isSelected) color = "bg-yellow-100 text-amber-700 ";
 
         // 選択中のセル：ピンク → 黄色 (bg-yellow-400)
         // 初期値かどうかで少し色味を変えてもいいですが、統一して黄色にします
@@ -908,8 +910,11 @@
                   <div className="grid grid-cols-5 gap-2 max-w-[500px] mx-auto px-2 h-full">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => {
                       const completed = isNumberComplete(num);
-                      if (completed) return <div key={num} className="h-full flex items-center justify-center text-slate-200 font-bold text-lg select-none">✓</div>;
-                      return (
+                        if (completed) return (
+                        <div key={num} className="h-12 sm:h-14 flex items-center justify-center text-slate-200 font-bold text-lg select-none bg-slate-50 rounded-xl border border-slate-100">
+                          ✓
+                        </div>
+                      );                      return (
                         <button key={num} onClick={() => handleNumberInput(num)} className="h-12 sm:h-14 bg-white border border-indigo-200 shadow-[0_4px_0_#e0e7ff] active:shadow-none active:translate-y-[4px] hover:bg-indigo-50 text-indigo-600 font-bold text-xl rounded-xl transition-all flex items-center justify-center">{num}</button>
                       );
                     })}
