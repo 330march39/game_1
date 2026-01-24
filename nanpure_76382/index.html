@@ -65,12 +65,12 @@
     /* サイズ変更を削除し、色が光るだけにしました */
     @keyframes wave {
       0% { background-color: transparent; }
-      50% { background-color: rgba(250, 204, 21, 0.9); box-shadow: 0 0 8px rgba(250, 204, 21, 0.6); } /* yellow-400 */
-      100% { background-color: transparent; }
+      30% { background-color: rgba(250, 204, 21, 0.8); } /* yellow-400 */
+      100% { background-color: transparent; } /* 終わったら透明（本来の色）に戻る */
     }
     .animate-wave {
-      /* アニメーション時間を0.6s -> 0.5sに短縮して軽快に */
-      animation: wave 0.5s ease-in-out forwards;
+      /* forwardsを指定しつつ、最後を透明にすることで本来の背景色を透過させます */
+      animation: wave 0.6s ease-out forwards;
     }
     .animate-fade-in {
       animation: fadeIn 0.3s ease-out forwards;
@@ -279,7 +279,6 @@
      */
 
     const BLANK = 0;
-
     const isValid = (board, row, col, num) => {
       for (let x = 0; x < 9; x++) if (board[row][x] === num) return false;
       for (let x = 0; x < 9; x++) if (board[x][col] === num) return false;
@@ -316,18 +315,14 @@
       const board = Array.from({ length: 9 }, () => Array(9).fill(BLANK));
       solveSudoku(board);
       const solution = board.map(row => [...row]);
-      
       let attempts = difficulty === 'easy' ? 30 : difficulty === 'medium' ? 45 : 54;
-      
       while (attempts > 0) {
         let row = Math.floor(Math.random() * 9);
         let col = Math.floor(Math.random() * 9);
-        while (board[row][col] === 0) {
-          row = Math.floor(Math.random() * 9);
-          col = Math.floor(Math.random() * 9);
+        if (board[row][col] !== 0) {
+          board[row][col] = BLANK;
+          attempts--;
         }
-        board[row][col] = BLANK;
-        attempts--;
       }
       return { initial: board, solution };
     };
@@ -479,7 +474,7 @@
       const [isGameStarted, setIsGameStarted] = useState(false);
       const [gameData, setGameData] = useState({ initial: [], solution: [] });
       const [board, setBoard] = useState([]);
-      const [selected, setSelected] = useState(null); 
+      const [selected, setSelected] = useState(null);
       const [difficulty, setDifficulty] = useState('easy');
       const [mistakes, setMistakes] = useState(0);
       const [isWon, setIsWon] = useState(false);
@@ -493,9 +488,7 @@
 
       useEffect(() => {
         const saved = localStorage.getItem('sudoku_best_times');
-        if (saved) {
-          setBestTimes(JSON.parse(saved));
-        }
+        if (saved) setBestTimes(JSON.parse(saved));
       }, []);
 
       const saveBestTime = (time, diff) => {
@@ -504,21 +497,13 @@
           const newBestTimes = { ...bestTimes, [diff]: time };
           setBestTimes(newBestTimes);
           localStorage.setItem('sudoku_best_times', JSON.stringify(newBestTimes));
-          return true;
         }
-        return false;
-      };
-
-      const startGame = (diff) => {
-        startNewGame(diff);
-        setIsGameStarted(true);
       };
 
       const startNewGame = useCallback((diff = difficulty) => {
         const { initial, solution } = generatePuzzle(diff);
-        const playBoard = initial.map(row => [...row]);
         setGameData({ initial, solution });
-        setBoard(playBoard);
+        setBoard(initial.map(row => [...row]));
         setMistakes(0);
         setIsWon(false);
         setTimer(0);
@@ -527,115 +512,61 @@
         setShowQuitConfirm(false);
       }, [difficulty]);
 
+      const startGame = (diff) => {
+        startNewGame(diff);
+        setIsGameStarted(true);
+      };
+
       useEffect(() => {
         let interval;
-        if (isGameStarted && !isWon && !showQuitConfirm) {
-          interval = setInterval(() => {
-            setTimer(prev => prev + 1);
-          }, 1000);
+        if (isGameStarted && !isWon && !showQuitConfirm && mistakes < 3) {
+          interval = setInterval(() => setTimer(prev => prev + 1), 1000);
         }
         return () => clearInterval(interval);
-      }, [isGameStarted, isWon, showQuitConfirm]);
+      }, [isGameStarted, isWon, showQuitConfirm, mistakes]);
 
-      // 行・列・ボックスが揃ったか確認してウェーブを発火させる関数
-      const checkAndAnimateLines = (currentBoard, r, c, val) => {
+      // ウェーブエフェクト（中心から広がるように計算）
+      const checkAndAnimateLines = (currentBoard, r, c) => {
         const newWaveCells = [];
-        const solution = gameData.solution;
+        const sol = gameData.solution;
 
-        // 行のチェック
-        let isRowComplete = true;
-        for (let j = 0; j < 9; j++) {
-          if (currentBoard[r][j] !== solution[r][j]) { isRowComplete = false; break; }
-        }
-        if (isRowComplete) {
-          // 左から右へウェーブ (delayを行インデックスで計算)
-          for (let j = 0; j < 9; j++) {
-            newWaveCells.push({ r: r, c: j, delay: j * 50 });
-          }
-        }
-
-        // 列のチェック
-        let isColComplete = true;
-        for (let i = 0; i < 9; i++) {
-          if (currentBoard[i][c] !== solution[i][c]) { isColComplete = false; break; }
-        }
-        if (isColComplete) {
-          // 上から下へウェーブ
-          for (let i = 0; i < 9; i++) {
-            newWaveCells.push({ r: i, c: c, delay: i * 50 });
-          }
-        }
-
-        // 3x3ボックスのチェック
-        const startRow = r - (r % 3);
-        const startCol = c - (c % 3);
+        // 行完成チェック
+        const isRowComplete = currentBoard[r].every((val, idx) => val === sol[r][idx]);
+        // 列完成チェック
+        const isColComplete = currentBoard.every((row, idx) => row[c] === sol[idx][c]);
+        // ボックス完成チェック
+        const startR = r - (r % 3), startC = c - (c % 3);
         let isBoxComplete = true;
         for (let i = 0; i < 3; i++) {
           for (let j = 0; j < 3; j++) {
-            if (currentBoard[startRow + i][startCol + j] !== solution[startRow + i][startCol + j]) {
-              isBoxComplete = false; break;
-            }
+            if (currentBoard[startR + i][startC + j] !== sol[startR + i][startC + j]) isBoxComplete = false;
           }
         }
+
+        const addWave = (cells) => {
+          cells.forEach(cell => {
+            // 入力マス(r, c)からの距離を計算してディレイをかける
+            const dist = Math.abs(cell.r - r) + Math.abs(cell.c - c);
+            newWaveCells.push({ ...cell, delay: dist * 60 });
+          });
+        };
+
+        if (isRowComplete) addWave(currentBoard[r].map((_, idx) => ({ r: r, c: idx })));
+        if (isColComplete) addWave(currentBoard.map((_, idx) => ({ r: idx, c: c })));
         if (isBoxComplete) {
-          // 左上から順にウェーブ
-          let delayCount = 0;
+          const boxCells = [];
           for (let i = 0; i < 3; i++) {
-            for (let j = 0; j < 3; j++) {
-              newWaveCells.push({ r: startRow + i, c: startCol + j, delay: delayCount * 50 });
-              delayCount++;
-            }
+            for (let j = 0; j < 3; j++) boxCells.push({ r: startR + i, c: startC + j });
           }
+          addWave(boxCells);
         }
 
         if (newWaveCells.length > 0) {
           setWaveCells(prev => [...prev, ...newWaveCells]);
-          // アニメーション終了後にstateをクリア（1秒後）
-          setTimeout(() => {
-            setWaveCells([]);
-          }, 1000);
+          setTimeout(() => setWaveCells([]), 1000);
         }
       };
 
-      const handleNumberInput = (num) => {
-        if (!selected || isWon || mistakes >= 3 || showQuitConfirm) return;
-        const { r, c } = selected;
-
-        if (gameData.initial[r][c] !== BLANK) return;
-
-        if (num === 0) {
-          const newBoard = [...board];
-          newBoard[r] = [...newBoard[r]];
-          newBoard[r][c] = 0;
-          setBoard(newBoard);
-          return;
-        }
-
-        if (gameData.solution[r][c] === num) {
-          const newBoard = [...board];
-          newBoard[r] = [...newBoard[r]];
-          newBoard[r][c] = num;
-          setBoard(newBoard);
-          setPopCell(`${r}-${c}`);
-          setTimeout(() => setPopCell(null), 300);
-          checkAndAnimateLines(newBoard, r, c, num);
-          if (checkIsComplete(newBoard)) {
-            // ここで timer を止めるなどの処理は useEffect 側で isWon を検知して止まるのでOK
-            // 1.5秒後に確実に isWon を true にする
-            setTimeout(() => {
-              setIsWon(true);
-              saveBestTime(timer, difficulty);
-            }, 1500);
-          }
-        } else {
-          setMistakes(prev => prev + 1);
-          setShakeCell(`${r}-${c}`);
-          setTimeout(() => setShakeCell(null), 400);
-        }
-      };
-
-      const checkWin = (currentBoard) => {
-        // 盤面が完成しているかチェックするだけの関数（stateは変更しない）
       const checkIsComplete = (currentBoard) => {
         for (let i = 0; i < 9; i++) {
           for (let j = 0; j < 9; j++) {
@@ -645,10 +576,85 @@
         return true;
       };
 
-      // 勝利確定時の処理
-      const handleWin = () => {
-        setIsWon(true);
-        saveBestTime(timer, difficulty);
+      const handleNumberInput = (num) => {
+        if (!selected || isWon || mistakes >= 3 || showQuitConfirm) return;
+        const { r, c } = selected;
+        if (gameData.initial[r][c] !== BLANK) return;
+
+        if (num === 0) {
+          const newBoard = board.map((row, ri) => ri === r ? row.map((val, ci) => ci === c ? 0 : val) : row);
+          setBoard(newBoard);
+          return;
+        }
+
+        if (gameData.solution[r][c] === num) {
+          const newBoard = board.map((row, ri) => ri === r ? row.map((val, ci) => ci === c ? num : val) : row);
+          setBoard(newBoard);
+          setPopCell(`${r}-${c}`);
+          setTimeout(() => setPopCell(null), 300);
+          checkAndAnimateLines(newBoard, r, c);
+
+          if (checkIsComplete(newBoard)) {
+            // ウェーブが終わるのを待ってから勝利判定
+            setTimeout(() => {
+              setIsWon(true);
+              saveBestTime(timer, difficulty);
+            }, 1200); 
+          }
+        } else {
+          setMistakes(prev => prev + 1);
+          setShakeCell(`${r}-${c}`);
+          setTimeout(() => setShakeCell(null), 400);
+        }
+      };
+
+      // キーボード入力
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (!isGameStarted || isWon || mistakes >= 3) return;
+          if (e.key >= '1' && e.key <= '9') handleNumberInput(parseInt(e.key));
+          else if (e.key === 'Backspace') handleNumberInput(0);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [isGameStarted, selected, isWon, board, mistakes]);
+
+      const isNumberComplete = (num) => {
+        let count = 0;
+        for (let r = 0; r < 9; r++) {
+          for (let c = 0; c < 9; c++) if (board[r][c] === num) count++;
+        }
+        return count === 9;
+      };
+
+      const getCellClass = (r, c, val) => {
+        const isSelected = selected?.r === r && selected?.c === c;
+        const isInitial = gameData.initial[r][c] !== BLANK;
+        const isRelated = selected && (selected.r === r || selected.c === c || (Math.floor(selected.r/3) === Math.floor(r/3) && Math.floor(selected.c/3) === Math.floor(c/3)));
+        const isSameNum = selected && val !== 0 && board[selected.r][selected.c] === val;
+        const waveData = waveCells.find(w => w.r === r && w.c === c);
+
+        let base = "w-full h-full flex items-center justify-center font-bold cursor-pointer transition-all duration-75 select-none relative ";
+        let border = "border border-slate-300 ";
+        if (c % 3 === 2 && c !== 8) border += "border-r-2 border-r-indigo-400 ";
+        if (r % 3 === 2 && r !== 8) border += "border-b-2 border-b-indigo-400 ";
+
+        let color = isInitial ? "bg-slate-100 text-slate-900 " : "bg-white text-indigo-600 ";
+        if (isRelated && !isSelected) color = "bg-yellow-50 ";
+        if (isSameNum && !isSelected) color = "bg-yellow-100 ";
+        if (isSelected) color = "bg-yellow-400 text-slate-900 z-10 shadow-inner ";
+
+        if (shakeCell === `${r}-${c}`) base += "animate-shake bg-red-100 ";
+        if (popCell === `${r}-${c}`) base += "animate-pop ";
+        if (waveData) base += "animate-wave ";
+
+        return { 
+            className: base + border + color, 
+            style: { 
+                fontSize: 'max(14px, min(4.5vmin, 2rem))',
+                animationDelay: waveData ? `${waveData.delay}ms` : '0s'
+            } 
+        };
       };
 
       // タイトルへ戻る処理（確実にリセットする）
