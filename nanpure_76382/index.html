@@ -66,7 +66,7 @@
     @keyframes wave {
       0% { background-color: transparent; }
       30% { background-color: rgba(250, 204, 21, 0.8); } /* yellow-400 */
-      100% { background-color: #fefce8; } /* ガイドの色（yellow-50）で終わる */
+      100% { background-color: transparent; } /* 終わったら透明（本来の色）に戻る */
     }
     .animate-wave {
       /* forwardsを指定しつつ、最後を透明にすることで本来の背景色を透過させます */
@@ -367,15 +367,15 @@
                   <div className="grid grid-cols-3 md:grid-cols-1 gap-2">
                     <div className="flex flex-col md:flex-row items-center justify-center md:justify-between p-2 md:px-3 md:py-2 bg-green-50/50 rounded-xl border border-green-100">
                       <span className="text-green-700 font-bold text-xs mb-1 md:mb-0">やさしい</span>
-                      <span className="font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.easy ? formatTime(bestTimes.easy) : '--:--'}</span>
+                      <span className="font-mono font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.easy ? formatTime(bestTimes.easy) : '--:--'}</span>
                     </div>
                     <div className="flex flex-col md:flex-row items-center justify-center md:justify-between p-2 md:px-3 md:py-2 bg-yellow-50/50 rounded-xl border border-yellow-100">
                       <span className="text-yellow-700 font-bold text-xs mb-1 md:mb-0">ふつう</span>
-                      <span className="font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.medium ? formatTime(bestTimes.medium) : '--:--'}</span>
+                      <span className="font-mono font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.medium ? formatTime(bestTimes.medium) : '--:--'}</span>
                     </div>
                     <div className="flex flex-col md:flex-row items-center justify-center md:justify-between p-2 md:px-3 md:py-2 bg-red-50/50 rounded-xl border border-red-100">
                       <span className="text-red-700 font-bold text-xs mb-1 md:mb-0">むずかしい</span>
-                      <span className="font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.hard ? formatTime(bestTimes.hard) : '--:--'}</span>
+                      <span className="font-mono font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.hard ? formatTime(bestTimes.hard) : '--:--'}</span>
                     </div>
                   </div>
                 </div>
@@ -731,68 +731,73 @@
 
       // --- サイドバーコンポーネント (PC/Landscape共通) ---
       const InfoPanel = ({ className }) => (
-        <div className={`flex flex-col bg-white/50 backdrop-blur-sm md:bg-white md:border-r border-slate-200 items-center justify-between shrink-0 h-full py-4 px-3 overflow-y-auto ${className}`}>
-          <div className="w-full flex flex-col gap-4">
+        <div className={`flex flex-col bg-white/50 backdrop-blur-sm md:bg-white md:border-r border-slate-200 items-center justify-evenly shrink-0 h-full py-2 px-2 overflow-y-auto ${className}`}>
+           {/* justify-between から justify-evenly に変更し、py-4 px-3 を py-2 px-2 に縮小 */}
+          
+          <div className="w-full flex flex-col gap-2 md:gap-4"> {/* gapをスマホ横画面用に縮小 */}
             <button 
                onClick={handleQuit}
-               className="flex items-center justify-center gap-2 text-slate-500 hover:text-indigo-600 font-bold transition-colors w-full p-3 hover:bg-slate-100 rounded-xl mb-2"
+               className="flex items-center justify-center gap-1 md:gap-2 text-slate-500 hover:text-indigo-600 font-bold transition-colors w-full p-2 hover:bg-slate-100 rounded-xl"
              >
-               <ArrowLeft size={20} /> <span className="text-sm font-bold">タイトル</span>
+               <ArrowLeft size={20} /> <span className="text-xs md:text-sm font-bold">戻る</span>
              </button>
              
-             <div className="w-full bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center gap-2">
-               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">LEVEL</span>
-               <span className={`text-sm font-bold px-3 py-1 rounded-full ${difficulty === 'easy' ? 'bg-green-100 text-green-600' : difficulty === 'medium' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'}`}>
+             {/* 各パネルのパディングを p-4 から p-2 に、マージンなどを削除してコンパクト化 */}
+             <div className="w-full bg-white p-2 md:p-4 rounded-xl md:rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center gap-0 md:gap-2">
+               <span className="text-[8px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider">LEVEL</span>
+               <span className={`text-xs md:text-sm font-bold px-2 md:px-3 py-0.5 md:py-1 rounded-full ${difficulty === 'easy' ? 'bg-green-100 text-green-600' : difficulty === 'medium' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'}`}>
                  {difficulty === 'easy' ? 'やさしい' : difficulty === 'medium' ? 'ふつう' : 'むずかしい'}
                </span>
              </div>
 
-             <div className="w-full bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center gap-2">
-               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TIME</span>
-               <div className="flex items-center gap-2 text-indigo-900 text-xl font-bold tabular-nums">
-                 <Clock size={20} className="text-indigo-400" />
+             <div className="w-full bg-white p-2 md:p-4 rounded-xl md:rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center gap-0 md:gap-2">
+               <span className="text-[8px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider">TIME</span>
+               <div className="flex items-center gap-1 md:gap-2 text-indigo-900 text-lg md:text-xl font-bold tabular-nums">
+                 <Clock size={16} className="text-indigo-400 md:w-5 md:h-5" />
                  {formatTime(timer)}
                </div>
              </div>
 
-             <div className="w-full bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center gap-2">
-               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">LIFE</span>
-               <div className="flex gap-1.5">
+             <div className="w-full bg-white p-2 md:p-4 rounded-xl md:rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center gap-0 md:gap-2">
+               <span className="text-[8px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider">LIFE</span>
+               <div className="flex gap-1">
                  {[...Array(3)].map((_, i) => (
-                   <Heart key={i} size={24} className={i < 3 - mistakes ? "text-rose-500 fill-rose-500" : "text-slate-200 fill-slate-200"} />
+                   <Heart key={i} size={18} className={`md:w-6 md:h-6 ${i < 3 - mistakes ? "text-rose-500 fill-rose-500" : "text-slate-200 fill-slate-200"}`} />
                  ))}
                </div>
              </div>
           </div>
-          <div className="flex flex-col items-center mt-4 opacity-50">
-             <Grid size={24} className="text-slate-300 mb-1" />
-             <div className="text-[10px] text-slate-300 font-bold tracking-widest">NANPRE</div>
+          <div className="flex flex-col items-center mt-2 opacity-50 shrink-0">
+             <Grid size={20} className="text-slate-300 mb-0.5 md:mb-1" />
+             <div className="text-[8px] md:text-[10px] text-slate-300 font-bold tracking-widest">NANPRE</div>
           </div>
         </div>
       );
 
       // --- テンキーコンポーネント (PC/Landscape共通) ---
       const NumberPad = ({ className, buttonClass }) => (
-        <div className={`flex flex-col bg-white/50 backdrop-blur-sm md:bg-white md:border-l border-slate-200 p-3 items-center justify-center shrink-0 h-full overflow-y-auto ${className}`}>
-           <div className="grid grid-cols-2 gap-3 w-full max-w-[180px]">
+        <div className={`flex flex-col bg-white/50 backdrop-blur-sm md:bg-white md:border-l border-slate-200 p-2 md:p-3 items-center justify-center shrink-0 h-full overflow-y-auto ${className}`}>
+           {/* max-w-[180px] を削除し、親要素に合わせて伸縮させる */}
+           <div className="grid grid-cols-2 gap-1.5 md:gap-3 w-full">
              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => {
                 const completed = isNumberComplete(num);
-                if (completed) return <div key={num} className="aspect-square flex items-center justify-center text-slate-300 font-bold text-xl select-none bg-slate-50 rounded-2xl border border-slate-100">✓</div>;
+                if (completed) return <div key={num} className="aspect-square flex items-center justify-center text-slate-300 font-bold text-lg md:text-xl select-none bg-slate-50 rounded-lg md:rounded-2xl border border-slate-100">✓</div>;
                 return (
                   <button
                     key={num}
                     onClick={() => handleNumberInput(num)}
-                    className={`aspect-square bg-white border-b-4 border-indigo-100 active:border-b-0 active:translate-y-[2px] hover:bg-indigo-50 text-indigo-600 font-bold text-2xl rounded-2xl transition-colors duration-100 shadow-sm border border-indigo-200 flex items-center justify-center ${buttonClass}`}
+                    // テキストサイズと角丸をスマホ横画面用に小さく調整
+                    className={`aspect-square bg-white border-b-2 md:border-b-4 border-indigo-100 active:border-b-0 active:translate-y-[2px] hover:bg-indigo-50 text-indigo-600 font-bold text-xl md:text-2xl rounded-lg md:rounded-2xl transition-colors duration-100 shadow-sm border border-indigo-200 flex items-center justify-center ${buttonClass}`}
                   >
                     {num}
                   </button>
                 );
              })}
-              <button
+             <button
                onClick={() => handleNumberInput(0)}
-               className={`aspect-square bg-slate-100 border-b-4 border-slate-200 active:border-b-0 active:translate-y-[2px] hover:bg-slate-200 text-slate-500 font-bold rounded-2xl transition-colors duration-100 flex items-center justify-center col-span-1 ${buttonClass}`}
+               className={`aspect-square bg-slate-100 border-b-2 md:border-b-4 border-slate-200 active:border-b-0 active:translate-y-[2px] hover:bg-slate-200 text-slate-500 font-bold rounded-lg md:rounded-2xl transition-colors duration-100 flex items-center justify-center col-span-1 ${buttonClass}`}
              >
-               <Eraser size={28} />
+               <Eraser size={24} className="md:w-7 md:h-7" />
              </button>
            </div>
         </div>
@@ -840,7 +845,7 @@
                 </div>
 
                 {/* PC / Landscape Mobile: Left Sidebar */}
-                <InfoPanel className="hidden landscape:flex md:flex w-48 shrink-0" />
+                <InfoPanel className="hidden landscape:flex md:flex w-28 md:w-48 shrink-0" />
 
 
                 {/* --- 2. 中央カラム (Board) --- */}
@@ -891,8 +896,7 @@
                 </div>
 
                 {/* PC / Landscape Mobile: Right Sidebar */}
-                <NumberPad className="hidden landscape:flex md:flex w-48 shrink-0" />
-
+                <NumberPad className="hidden landscape:flex md:flex w-28 md:w-48 shrink-0" />
               </div>
             )}
 
