@@ -619,35 +619,6 @@
         return () => window.removeEventListener('keydown', handleKeyDown);
       }, [isGameStarted, selected, isWon, board, mistakes]);
 
-      const getCellClass = (r, c, val) => {
-        const isSelected = selected?.r === r && selected?.c === c;
-        const isInitial = gameData.initial[r][c] !== BLANK;
-        const isRelated = selected && (selected.r === r || selected.c === c || (Math.floor(selected.r/3) === Math.floor(r/3) && Math.floor(selected.c/3) === Math.floor(c/3)));
-        const isSameNum = selected && val !== 0 && board[selected.r][selected.c] === val;
-        const waveData = waveCells.find(w => w.r === r && w.c === c);
-
-        let base = "w-full h-full flex items-center justify-center font-bold cursor-pointer transition-all duration-75 select-none relative ";
-        let border = "border border-slate-300 ";
-        if (c % 3 === 2 && c !== 8) border += "border-r-2 border-r-indigo-400 ";
-        if (r % 3 === 2 && r !== 8) border += "border-b-2 border-b-indigo-400 ";
-
-        let color = isInitial ? "bg-slate-100 text-slate-900 " : "bg-white text-indigo-600 ";
-        if (isRelated && !isSelected) color = "bg-yellow-50 ";
-        if (isSameNum && !isSelected) color = "bg-yellow-100 ";
-        if (isSelected) color = "bg-yellow-400 text-slate-900 z-10 shadow-inner ";
-
-        if (shakeCell === `${r}-${c}`) base += "animate-shake bg-red-100 ";
-        if (popCell === `${r}-${c}`) base += "animate-pop ";
-        if (waveData) base += "animate-wave ";
-
-        return { 
-            className: base + border + color, 
-            style: { 
-                fontSize: 'max(14px, min(4.5vmin, 2rem))',
-                animationDelay: waveData ? `${waveData.delay}ms` : '0s'
-            } 
-        };
-      };
 
       // タイトルへ戻る処理（確実にリセットする）
       const handleBackToTitle = () => {
