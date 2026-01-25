@@ -66,7 +66,7 @@
     @keyframes wave {
       0% { background-color: transparent; }
       30% { background-color: rgba(250, 204, 21, 0.8); } /* yellow-400 */
-      100% { background-color: transparent; } /* 終わったら透明（本来の色）に戻る */
+      100% { background-color: #fefce8; } /* ガイドの色（yellow-50）で終わる */
     }
     .animate-wave {
       /* forwardsを指定しつつ、最後を透明にすることで本来の背景色を透過させます */
@@ -367,15 +367,15 @@
                   <div className="grid grid-cols-3 md:grid-cols-1 gap-2">
                     <div className="flex flex-col md:flex-row items-center justify-center md:justify-between p-2 md:px-3 md:py-2 bg-green-50/50 rounded-xl border border-green-100">
                       <span className="text-green-700 font-bold text-xs mb-1 md:mb-0">やさしい</span>
-                      <span className="font-mono font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.easy ? formatTime(bestTimes.easy) : '--:--'}</span>
+                      <span className="font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.easy ? formatTime(bestTimes.easy) : '--:--'}</span>
                     </div>
                     <div className="flex flex-col md:flex-row items-center justify-center md:justify-between p-2 md:px-3 md:py-2 bg-yellow-50/50 rounded-xl border border-yellow-100">
                       <span className="text-yellow-700 font-bold text-xs mb-1 md:mb-0">ふつう</span>
-                      <span className="font-mono font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.medium ? formatTime(bestTimes.medium) : '--:--'}</span>
+                      <span className="font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.medium ? formatTime(bestTimes.medium) : '--:--'}</span>
                     </div>
                     <div className="flex flex-col md:flex-row items-center justify-center md:justify-between p-2 md:px-3 md:py-2 bg-red-50/50 rounded-xl border border-red-100">
                       <span className="text-red-700 font-bold text-xs mb-1 md:mb-0">むずかしい</span>
-                      <span className="font-mono font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.hard ? formatTime(bestTimes.hard) : '--:--'}</span>
+                      <span className="font-bold text-slate-700 text-sm md:text-base tabular-nums">{bestTimes.hard ? formatTime(bestTimes.hard) : '--:--'}</span>
                     </div>
                   </div>
                 </div>
